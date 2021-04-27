@@ -2,13 +2,18 @@
 from PIL import Image
 import numpy as np
 
+# standard libraries
+import collections
+import os.path
+import sys
+
+_parentdir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+sys.path.append(_parentdir)
+
 # 3rd party libraries (module file available)
 import clut
 
-# standard libraries
-import collections
-import pathlib
-import sys
+sys.path.remove(_parentdir)
 
 
 def iterrgb():
@@ -20,15 +25,7 @@ def iterrgb():
 
 if __name__ == "__main__":
 
-    if 2 <= len(sys.argv):
-        subdirname = sys.argv[1]
-    else:
-        subdirname = "monocolors"
-
-    root = pathlib.Path(__file__).parent
-    directory = root / subdirname
-    directory.mkdir(parents=True, exist_ok=True)  # ensure directory
-    eh = clut.CLUT(str(root / "haldclut/cvd.mono.achromatopsia.png"))
+    eh = clut.CLUT("../haldclut/cvd.mono.achromatopsia.png")
 
     y_rgbs = collections.defaultdict(list)
     for r, g, b in iterrgb():
@@ -45,7 +42,7 @@ if __name__ == "__main__":
         shape = [1] + list(arr.shape)
         arr = arr.reshape(shape)
         img = Image.fromarray(arr, mode='RGB')
-        img.save(f'{directory}/{y:0>2x}.png')
+        img.save(f'{y:0>2x}.png')
         y_rgbs_img[y] = img
         N += len(rgbs)
     print("-"*30)

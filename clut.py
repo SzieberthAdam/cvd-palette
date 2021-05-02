@@ -1,3 +1,6 @@
+#https://github.com/oiao/clut
+__version__ = '0.1'
+
 from typing import *
 import numpy as np
 from PIL import Image

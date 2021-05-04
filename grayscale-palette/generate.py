@@ -29,15 +29,14 @@ def guess_y(n, i):
         return 255
     x = Decimal(255 * i) / (n-1)
     y = (
-        - Decimal("0.00000000058234706151")*x**5
-        + Decimal("0.00000038553390665858")*x**4
-        - Decimal("0.00008059045303826679")*x**3
-        + Decimal("0.00589983450736143544")*x**2
-        + Decimal("0.75881303801838689099")*x
-        + Decimal("9.94535069791095097005")
+        - Decimal("0.00000000046669726111")*x**5
+        + Decimal("0.00000031285749519664")*x**4
+        - Decimal("0.00006539101310410843")*x**3
+        + Decimal("0.00466629241308161165")*x**2
+        + Decimal("0.80315812595762349448")*x
+        + Decimal("9.19484837623217129633")
     )  # result of curve fitting
     return ensure_uint8(int(round(y, 0)))
-
 
 def get_pal_delta_e(rgb_arr):
     lab_arr = get_lab_arr(rgb_arr)
@@ -57,21 +56,20 @@ def getn(pools):
     return value
 
 
-if __name__ == "__main__":
-
-    if len(sys.argv) < 2:
+def main(*argv):
+    if len(argv) < 2:
         print(f'ERROR! 1<N integer palette size was expected as argument.')
-        sys.exit(1)
+        return 1
 
     try:
-        N = int(sys.argv[1])
+        N = int(argv[1])
     except ValueError:
         print(f'ERROR! 1<N integer palette size was expected as argument.')
-        sys.exit(1)
+        return 1
 
     if N <= 1:
         print(f'ERROR! 1<N integer palette size was expected as argument.')
-        sys.exit(1)
+        return 1
 
     start_palette_arr = np.array([guess_y(N, i) for i in range(N)])
 
@@ -160,7 +158,13 @@ if __name__ == "__main__":
         f.write(f'{max_delta_e}\n')
     print(f'"grayscale{N:0>2}_deltaE.txt" saved.')
 
-    arr = np.repeat(grayscalearr, 3).reshape((1, N, 3)).astype('uint8')
+    arr = np.repeat(grayscalearr, 3).reshape((len(grayscalearr), N, 3)).astype('uint8')
     img = Image.fromarray(arr, 'RGB')
     img.save(f'grayscale{N:0>2}.png')
     print(f'"grayscale{N:0>2}.png" saved.')
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(*sys.argv))

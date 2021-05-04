@@ -9,7 +9,7 @@ import sys
 
 def rgbstr(rgb):
     r, g, b = rgb
-    return f'#{r:0>2x}{g:0>2x}{b:0>2x}'
+    return f'#{r:0>2X}{g:0>2X}{b:0>2X}'
 
 
 if __name__ == "__main__":

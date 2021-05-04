@@ -7,7 +7,7 @@ import collections
 import os.path
 import sys
 
-_parentdir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+_parentdir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir))
 sys.path.append(_parentdir)
 
 # 3rd party libraries (module file available)
@@ -25,7 +25,7 @@ def iterrgb():
 
 if __name__ == "__main__":
 
-    eh = clut.CLUT("../haldclut/cvd.mono.achromatopsia.png")
+    eh = clut.CLUT(_parentdir + "/haldclut/cvd.mono.achromatopsia.png")
 
     y_rgbs = collections.defaultdict(list)
     for r, g, b in iterrgb():

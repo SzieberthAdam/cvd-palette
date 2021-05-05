@@ -22,21 +22,26 @@ def get_lab_arr(rgb_arr):
     lab_arr = colour.XYZ_to_Lab(xyz_arr)
     return lab_arr
 
-def guess_y(n, i):
+def guess_y_for_x(x, rounded=True):
+    y = (
+        - Decimal("0.00000000039293428346")*x**5
+        + Decimal("0.00000027548158813178")*x**4
+        - Decimal("0.00005902279731056096")*x**3
+        + Decimal("0.00418862809152376355")*x**2
+        + Decimal("0.82592783724614506785")*x
+        + Decimal("9.01889824926381081760")
+    )  # result of curve fitting
+    if rounded:
+        y = ensure_uint8(int(round(y, 0)))
+    return y
+
+def guess_y(n, i, rounded=True):
     if i == 0:
         return 0
     elif i == n - 1:
         return 255
     x = Decimal(255 * i) / (n-1)
-    y = (
-        - Decimal("0.00000000046669726111")*x**5
-        + Decimal("0.00000031285749519664")*x**4
-        - Decimal("0.00006539101310410843")*x**3
-        + Decimal("0.00466629241308161165")*x**2
-        + Decimal("0.80315812595762349448")*x
-        + Decimal("9.19484837623217129633")
-    )  # result of curve fitting
-    return ensure_uint8(int(round(y, 0)))
+    return guess_y_for_x(x, rounded=rounded)
 
 def get_pal_delta_e(rgb_arr):
     lab_arr = get_lab_arr(rgb_arr)

@@ -1,3 +1,4 @@
+import collections
 import copy
 import itertools
 import pathlib
@@ -17,13 +18,21 @@ sys.path.insert(0, str(_parentdir))
 
 # 3rd party libraries (module file available)
 import de2000
+import png2pal
+import pal2hex
 
 sys.path.remove(str(_parentdir))
 
 def ensure_uint8(v):
     return max(0, min(255, int(v)))
 
-def guess_y_for_x(x, rounded=True):
+def guess_y_for_x_linear(x, rounded=True):
+    y = x
+    if rounded:
+        y = ensure_uint8(int(round(y, 0)))
+    return y
+
+def guess_y_for_x_polynomial(x, rounded=True):
     y = (
         - Decimal("0.00000000039293428346")*x**5
         + Decimal("0.00000027548158813178")*x**4
@@ -36,16 +45,17 @@ def guess_y_for_x(x, rounded=True):
         y = ensure_uint8(int(round(y, 0)))
     return y
 
-def guess_y(n, i, rounded=True):
+def guess_y(n, i, rounded=True, f=None):
+    f = f or guess_y_for_x_polynomial
     if i == 0:
         return 0
     elif i == n - 1:
         return 255
     x = Decimal(255 * i) / (n-1)
-    return guess_y_for_x(x, rounded=rounded)
+    return f(x, rounded=rounded)
 
 def grayscalepalhexstr(grayscalepal):
-    return ", ".join([f'0x{v:0>2X}' for v in grayscalepal])
+    return " ".join([f'0x{v:0>2X}' for v in grayscalepal])
 
 
 def getn(pools):
@@ -60,6 +70,15 @@ def main(*argv):
         print(f'ERROR! 1<N integer palette size was expected as argument.')
         return 1
 
+    f_guess_y_for_x =guess_y_for_x_polynomial
+    verbose = 1
+    while argv[1].lower() in {"linear", "verbose"}:
+        if argv[1].lower() == "linear":
+            f_guess_y_for_x = guess_y_for_x_linear
+        else:
+            verbose = 2
+        argv = argv = argv[1:]
+
     try:
         N = int(argv[1])
     except ValueError:
@@ -70,7 +89,8 @@ def main(*argv):
         print(f'ERROR! 1<N integer palette size was expected as argument.')
         return 1
 
-    start_palette_arr = np.array([guess_y(N, i) for i in range(N)])
+    start_palette_list = [guess_y(N, i, f=f_guess_y_for_x) for i in range(N)]
+    start_palette_arr = np.array(start_palette_list)
 
     print(f'Initial guess:  [{grayscalepalhexstr(start_palette_arr)}]')
 
@@ -103,6 +123,7 @@ def main(*argv):
         n = 0
         #print(new_palette_candidates)
 
+        deltaEs = collections.defaultdict(set)
         for grayscalepal in current_palette_candidates:
             #print(grayscalepal)
 
@@ -110,6 +131,7 @@ def main(*argv):
             #print(rgb_arr)
 
             pal_delta_e = de2000.get_pal_delta_e(rgb_arr)
+            deltaEs[pal_delta_e].add(grayscalepal)
 
             #starstr = (" *" if max_delta_e <= pal_delta_e else "")
             #print(f'[{grayscalepalhexstr(grayscalepal)}] deltaE: {pal_delta_e}{starstr}')
@@ -123,6 +145,11 @@ def main(*argv):
             k += 1
             if k % 100000 == 0:
                 print(f'at {k} iteration; max delta E: {max_delta_e[0]}')
+
+        if verbose == 2:
+            for pal_delta_e in sorted(deltaEs):
+                for grayscalepal in sorted(deltaEs[pal_delta_e]):
+                    print(f'[{grayscalepalhexstr(grayscalepal)}] {pal_delta_e}')
 
         for grayscalepal in max_delta_e_pals:
             for i, y in enumerate(grayscalepal[1:-1], 1):
@@ -151,14 +178,21 @@ def main(*argv):
         print(f'[{grayscalepalhexstr(grayscalepal)}]')
         print()
         rgb_arr = np.repeat(grayscalepal, 3).reshape((N, 3))
-        with open(f'grayscale{N:0>2}_deltaE.txt', "w", encoding="utf8") as f:
+        with open(f'grayscale{N:0>2}.deltaE.txt', "w", encoding="utf8") as f:
             f.write(de2000.get_pal_delta_e_pairs_report(rgb_arr))
-        print(f'"grayscale{N:0>2}_deltaE.txt" saved.')
+        print(f'"grayscale{N:0>2}.deltaE.txt" saved.')
 
     arr = np.repeat(grayscalearr, 3).reshape((len(grayscalearr), N, 3)).astype('uint8')
     img = Image.fromarray(arr, 'RGB')
-    img.save(f'grayscale{N:0>2}.png')
-    print(f'"grayscale{N:0>2}.png" saved.')
+    img_filename = f'grayscale{N:0>2}.01x.png'
+    img.save(img_filename)
+    print(f'"{img_filename}" saved.')
+
+    png2pal.main(img_filename, verbose=True)
+
+    pal_filename = f'grayscale{N:0>2}.pal'
+
+    pal2hex.main(pal_filename, verbose=True)
 
     return 0
 

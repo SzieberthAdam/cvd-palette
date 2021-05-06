@@ -5,10 +5,14 @@ import sys
 
 def rgbstr(rgb):
     r, g, b = rgb
-    return f'#{r:0>2X}{g:0>2X}{b:0>2X}'
+    return f'{r:0>2X}{g:0>2X}{b:0>2X}'
 
-def palstr(palarr):
-    return ", ".join(rgbstr(rgb) for rgb in palarr)
+def hexstr(palarr):
+    return "\n".join(rgbstr(rgb) for rgb in palarr)
+
+
+def dump(pal_arr, fp):
+    return fp.write(hexstr(pal_arr) + "\n")
 
 
 def main(filename=None, *, verbose=False):
@@ -21,13 +25,13 @@ def main(filename=None, *, verbose=False):
     with pin.open() as fp:
         data = pal.load(fp)
 
-    pout = pin.resolve().parent / f'{pin.stem}.hex.txt'
+    pout = pin.resolve().parent / f'{pin.stem}.hex'
 
     with pout.open("w", encoding="ascii") as fp:
-        fp.write(palstr(data)+ "\n")
+        dump(data, fp)
 
     if verbose:
-        print(f'"{pin.stem}.hex.txt" saved.')
+        print(f'"{pin.stem}.hex" saved.')
 
     return 0
 

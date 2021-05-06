@@ -7,13 +7,13 @@ from PIL import Image
 import sys
 
 
-if __name__ == "__main__":
+def main(filename=None, *, verbose=False):
+    if filename is None:
+        if verbose:
+            print(f'ERROR! PNG file was expected as argument.')
+        return 1
 
-    if len(sys.argv) < 2:
-        print(f'ERROR! PNG file was expected as argument.')
-        sys.exit(1)
-
-    pin = pathlib.Path(sys.argv[1])
+    pin = pathlib.Path(filename)
     img = Image.open(pin)
     data = tuple(img.getdata())
 
@@ -21,4 +21,13 @@ if __name__ == "__main__":
     with pout.open("w", encoding="ascii") as fp:
         pal.dump(data, fp)
 
-    print(f'"{pin.stem}.pal" saved.')
+    if verbose:
+        print(f'"{pin.stem}.pal" saved.')
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(*sys.argv[1:], verbose=True))
+
+

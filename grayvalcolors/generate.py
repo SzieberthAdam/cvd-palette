@@ -15,16 +15,21 @@ sys.path.insert(0, str(_parentdir))
 
 # 3rd party libraries (module file available)
 import clut
+import de2000
 
 sys.path.remove(str(_parentdir))
 
 TOPLEVEL = 256
 
-def iterrgb():
-    for r in range(256):
-        for g in range(256):
-            for b in range(256):
+def iterrgb(points=None):
+    points = points or tuple(range(256))
+    for r in points:
+        for g in points:
+            for b in points:
                 yield r, g, b
+
+def get_distance(rgb1, rgb2):
+    return (rgb1[0]-rgb2[0])**2 + (rgb1[1]-rgb2[1])**2 + (rgb1[2]-rgb2[2])**2
 
 def quantiles(data, *, n=4, method='exclusive'):
     """Divide *data* into *n* continuous intervals with equal probability.
@@ -125,33 +130,37 @@ if __name__ == "__main__":
         print(f'N={N}; expected=256^3={256**3}')
 
     else:
+        dist = int(256 / level)
+        sdist = int(dist/2)
+        refpoints = list(range(0, 257, dist))
         for y in ys:
-            imgp = _thisdir / f'{TOPLEVEL:0>3}' / f'{y:0>2x}.png'
-            img = Image.open(imgp)
-            data = tuple(img.getdata())
-            rr, gg, bb = zip(*data)
-            rr, gg, bb = sorted(set(rr)), sorted(set(gg)), sorted(set(bb))
-            rrbbdata = sorted(data, key=lambda rgb: (rgb[0], rgb[2], rgb[1]))
-            bbrrdata = sorted(data, key=lambda rgb: (-rgb[2], rgb[0], rgb[1]))
-            data = [rrbbdata[0], rrbbdata[-1], bbrrdata[0], bbrrdata[-1]]
+            imginp = _thisdir / f'{TOPLEVEL:0>3}' / f'{y:0>2x}.png'
+            imgin = Image.open(imginp)
+            data = tuple(imgin.getdata())
+            chosen = []
+            for refrgb in iterrgb(refpoints):
+                refchosen = []
+                mindistance = 999999999
+                for rgb in data:
+                    if any(rgb[i] not in range(refrgb[i]-sdist, refrgb[i]+sdist) for i in range(3)):
+                        continue
+                    distance = get_distance(rgb, refrgb)
+                    if distance < mindistance:
+                        refchosen = []
+                        mindistance = distance
+                    if distance <= mindistance:
+                        refchosen.append(rgb)
+                    if distance == 0:
+                        break
+                if 1 < len(refchosen):
+                    refchosen.sort(key=lambda rgb: de2000.get_pal_delta_e_pairs([rgb, refrgb]))
+                    refchosen = refchosen[:1]
+                chosen.extend(refchosen)
 
-            if 2 < level:
-                for comb in itertools.combinations(data, 2):
-                    (r1, g1, b1), (r2, g2, b2) = comb
-                    lookuprgb = (statistics.mean((r1, r2)), statistics.mean((g1, g2)), statistics.mean((b1, b2)))
-                    print(lookuprgb)
+            chosen = sorted(set(chosen))  # ensure no duplicates
 
-            data = tuple(tuple(rgb) for rgb in sorted(data))
-
-#
-#            fq = statistics.quantiles
-#            rrq = [min(rr)] + [int(round(q, 0)) for q in fq(rr, n=level-1, method='inclusive')] + [max(rr)]
-#            ggq = [min(gg)] + [int(round(q, 0)) for q in fq(gg, n=level-1, method='inclusive')] + [max(gg)]
-#            bbq = [min(bb)] + [int(round(q, 0)) for q in fq(bb, n=level-1, method='inclusive')] + [max(bb)]
-#            data = tuple(tuple(rgb) for rgb in itertools.product(rrq, ggq, bbq))
-#            print(data)
-            img = Image.new('RGB', [len(data), 1])
-            img.putdata(data)
-            imgp = _thisdir / leveldirname / f'{y:0>2x}.png'
-            img.save(imgp)
+            imgout = Image.new('RGB', [len(chosen), 1])
+            imgout.putdata(chosen)
+            imgoutp = _thisdir / leveldirname / f'{y:0>2x}.png'
+            imgout.save(imgoutp)
             print(f'"{y:0>2x}.png" saved.')

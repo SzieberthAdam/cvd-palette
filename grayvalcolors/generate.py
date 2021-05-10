@@ -28,6 +28,14 @@ def iterrgb(points=None):
             for b in points:
                 yield r, g, b
 
+def get_ref_rgb(rgb, dist):
+    result = [None] * 3
+    for i in range(3):
+        d, m = divmod(rgb[i], dist)
+        v = dist * (d + (1 if dist <= 2*m else 0))
+        result[i] = v
+    return tuple(result)
+
 def get_distance(rgb1, rgb2):
     return (rgb1[0]-rgb2[0])**2 + (rgb1[1]-rgb2[1])**2 + (rgb1[2]-rgb2[2])**2
 
@@ -75,6 +83,10 @@ def quantiles(data, *, n=4, method='exclusive'):
         return result
     raise ValueError(f'Unknown method: {method!r}')
 
+def rgbstr(rgb):
+    r, g, b = rgb
+    return f'#{r:0>2X}{g:0>2X}{b:0>2X}'
+
 
 if __name__ == "__main__":
 
@@ -103,9 +115,9 @@ if __name__ == "__main__":
     leveldirname = f'{level:0>3}'
     (_thisdir / leveldirname).mkdir(parents=True, exist_ok=True)  # ensure target directory
 
-    if level == TOPLEVEL:
+    eh = clut.CLUT(str(_parentdir / "haldclut/cvd.mono.achromatopsia.png"))
 
-        eh = clut.CLUT(str(_parentdir / "haldclut/cvd.mono.achromatopsia.png"))
+    if level == TOPLEVEL:
 
         y_rgbs = collections.defaultdict(list)
         for r, g, b in iterrgb():
@@ -130,37 +142,35 @@ if __name__ == "__main__":
         print(f'N={N}; expected=256^3={256**3}')
 
     else:
+
+        _NORGB = (None, None)
         dist = int(256 / level)
-        sdist = int(dist/2)
+
         refpoints = list(range(0, 257, dist))
-        for y in ys:
-            imginp = _thisdir / f'{TOPLEVEL:0>3}' / f'{y:0>2x}.png'
-            imgin = Image.open(imginp)
-            data = tuple(imgin.getdata())
-            chosen = []
-            for refrgb in iterrgb(refpoints):
-                refchosen = []
-                mindistance = 999999999
-                for rgb in data:
-                    if any(rgb[i] not in range(refrgb[i]-sdist, refrgb[i]+sdist) for i in range(3)):
-                        continue
-                    distance = get_distance(rgb, refrgb)
-                    if distance < mindistance:
-                        refchosen = []
-                        mindistance = distance
-                    if distance <= mindistance:
-                        refchosen.append(rgb)
-                    if distance == 0:
-                        break
-                if 1 < len(refchosen):
-                    refchosen.sort(key=lambda rgb: de2000.get_pal_delta_e_pairs([rgb, refrgb]))
-                    refchosen = refchosen[:1]
-                chosen.extend(refchosen)
+        y_rgbs = collections.defaultdict(dict)
 
-            chosen = sorted(set(chosen))  # ensure no duplicates
+        for rgb in iterrgb():
+            r, g, b = rgb
+            if g == 255 and b == 255:
+                print(rgbstr(rgb))
+            y = eh.clut[r][g][b][0]
+            d = y_rgbs[y]
+            refrgb = get_ref_rgb(rgb, dist)
+            currdistance, currrgb = d.get(refrgb, _NORGB)
+            distance = get_distance(rgb, refrgb)
+            if currdistance is None or distance < currdistance:
+                d[refrgb] = (distance, rgb)
+            elif distance == currdistance:
+                currdE = de2000.get_pal_delta_e_pairs([currrgb, refrgb])
+                dE = de2000.get_pal_delta_e_pairs([rgb, refrgb])
+                if dE < currdE:
+                    d[refrgb] = (distance, rgb)
 
-            imgout = Image.new('RGB', [len(chosen), 1])
-            imgout.putdata(chosen)
+        for y, d in y_rgbs.items():
+            rgbs = sorted([rgb for distance, rgb in d.values()])
+
+            imgout = Image.new('RGB', [len(rgbs), 1])
+            imgout.putdata(rgbs)
             imgoutp = _thisdir / leveldirname / f'{y:0>2x}.png'
             imgout.save(imgoutp)
             print(f'"{y:0>2x}.png" saved.')

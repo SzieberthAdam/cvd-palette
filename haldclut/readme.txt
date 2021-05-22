@@ -26,19 +26,8 @@ More info: http://www.quelsolaar.com/technology/clut.html
 About These Hald CLUTs
 ======================
 
-All Hald CLUTs provided  are lossless 4096x4096 pixel size PNGs.
-The CVD Hald CLUTs were generated from the identity Hald CLUT by 
-the Coblis website:
-
-http://www.color-blindness.com/coblis2/
-http://www.color-blindness.com/coblis-color-blindness-simulator/
-
-The Coblis simulator utilizes the conversion method published by
-Thomas Wolfmaier and HCIRN, then Matthew Wickline.
-
-https://web.archive.org/web/20120725001906/http://www.internettg.org/newsletter/mar99/accessibility_color_challenged.html
-
-Finally, all images were reduced in size by OptiPNG 0.7.7:
+All Hald CLUTs provided  are lossless 4096x4096 pixel size PNGs,
+and all images were reduced in size by OptiPNG 0.7.7:
 
 http://optipng.sourceforge.net/
 
@@ -46,28 +35,3 @@ http://optipng.sourceforge.net/
 identity.png                        
                 Normal vision. An identity CLUT is a CLUT that
                 doesn't affect the image it is applied to. 
-        
-cvd.di.deuteranopia.png
-                Dichromatic view: Green-Blind/Deuteranopia
-
-cvd.di.protanopia.png
-                Dichromatic view: Red-Blind/Protanopia
-
-cvd.di.tritanopia.png
-                Dichromatic view: Blue-Blind/Tritanopia
-
-cvd.mono.achromatopsia.png
-                Monochromatic view: Monochromacy/Achromatopsia
-
-cvd.mono.achromatomaly.png
-                Monochromatic view: Achromatomaly 
-                (Blue Cone Monochromacy)
-
-cvd.tri.deuteranomaly.png
-                Anomalous Trichromacy: Green-Weak/Deuteranomaly
-
-cvd.tri.protanomaly.png
-                Anomalous Trichromacy: Red-Weak/Protanomaly
-
-cvd.tri.tritanomaly.png
-                Anomalous Trichromacy: Blue-Weak/Tritanomaly

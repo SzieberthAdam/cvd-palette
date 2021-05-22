@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Color vision deficiency simulation through CSS + SVG filters</title>
+    <style>
+      html {
+        font: 1rem/1.6 sans-serif;
+      }
+      html, body, img {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      body {
+        padding: 0.7rem;
+      }
+      img {
+        max-width: 100%;
+        height: auto;
+      }
+      img + img {
+        margin-left: 0.7rem;
+      }
+      .filtered {
+        /*filter: url(#blurredVision);*/
+      }
+      svg {
+        height: 0;
+        width: 0;
+      }
+      
+      .settings {
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Using CSS + SVG filters to simulate color vision deficiencies</h1>
+    <svg>
+      <filter id="blurredVision">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="2">
+      </filter>
+      <!-- The filter grayscale matrix is based on the following research paper:
+           Rang Man Ho Nguyen and Michael S. Brown,
+           “Why You Should Forget Luminance Conversion and Do Something Better”.
+           IEEE Conference on Computer Vision and Pattern Recognition (CVPR),
+           Honolulu, HI, 2017. pp. 6750-6758.
+           https://openaccess.thecvf.com/content_cvpr_2017/papers/Nguyen_Why_You_Should_CVPR_2017_paper.pdf
+           -->
+      <filter id="achromatopsia">
+        <!--
+          Note: Safari 13 doesn’t support leading newlines in the `values` attribute value.
+          https://bugs.webkit.org/show_bug.cgi?id=215602
+        -->
+        <feColorMatrix values="0.213  0.715  0.072  0.000  0.000
+                               0.213  0.715  0.072  0.000  0.000
+                               0.213  0.715  0.072  0.000  0.000
+                               0.000  0.000  0.000  1.000  0.000">
+        </feColorMatrix>
+      </filter>
+      <!-- The filter color matrices are based on the following research paper:
+           Gustavo M. Machado, Manuel M. Oliveira, and Leandro A. F. Fernandes,
+           “A Physiologically-based Model for Simulation of Color Vision Deficiency”.
+           IEEE Transactions on Visualization and Computer Graphics. Volume 15 (2009),
+           Number 6, November/December 2009. pp. 1291-1298.
+           https://www.inf.ufrgs.br/~oliveira/pubs_files/CVD_Simulation/CVD_Simulation.html
+           -->
+      <filter id="deuteranopia">
+        <feColorMatrix values="0.367  0.861 -0.228  0.000  0.000
+                               0.280  0.673  0.047  0.000  0.000
+                              -0.012  0.043  0.969  0.000  0.000
+                               0.000  0.000  0.000  1.000  0.000">
+        </feColorMatrix>
+      </filter>
+      <filter id="protanopia">
+        <feColorMatrix values="0.152  1.053 -0.205  0.000  0.000
+                               0.115  0.786  0.099  0.000  0.000
+                              -0.004 -0.048  1.052  0.000  0.000
+                               0.000  0.000  0.000  1.000  0.000">
+        </feColorMatrix>
+      </filter>
+      <filter id="tritanopia">
+        <feColorMatrix values="1.256 -0.077 -0.179  0.000  0.000
+                              -0.078  0.931  0.148  0.000  0.000
+                               0.005  0.691  0.304  0.000  0.000
+                               0.000  0.000  0.000  1.000  0.000">
+        </feColorMatrix>
+      </filter>
+    </svg>
+    <picture>
+      <!-- Photo source: https://unsplash.com/photos/keMdIzsNzsM -->
+      <source type="image/avif" srcset="https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular-2x.avif?v=1617172003729 2x, https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular.avif?v=1617172287241.avif">
+      <source type="image/webp" srcset="https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular-2x.webp?v=1617172318627 2x, https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular.webp?v=1617172285346">
+      <img src="https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular.png?v=1617172289223" srcset="https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular-2x.png?v=1617172032386 2x" width="600" height="338" alt="A photo of melted crayons">
+    </picture>
+    <picture>
+      <source type="image/avif" srcset="https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular-2x.avif?v=1617172003729 2x, https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular.avif?v=1617172287241.avif">
+      <source type="image/webp" srcset="https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular-2x.webp?v=1617172318627 2x, https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular.webp?v=1617172285346">
+      <img src="https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular.png?v=1617172289223" srcset="https://cdn.glitch.com/65c00e30-47ba-4898-8022-2e3f2cc5b596%2F0-regular-2x.png?v=1617172032386 2x" width="600" height="338" alt="The same photo of melted crayons, optionally with CSS and SVG filter effects applied" class="filtered">
+    </picture>
+    <div class="settings">
+      <label><input type="radio" name="vision-deficiency" value="none" checked autofocus> no vision deficiency</label>
+      <label><input type="radio" name="vision-deficiency" value="blurredVision"> blurred vision</label>
+      <label><input type="radio" name="vision-deficiency" value="achromatopsia"> achromatopsia</label>
+      <label><input type="radio" name="vision-deficiency" value="deuteranopia"> deuteranopia</label>
+      <label><input type="radio" name="vision-deficiency" value="protanopia"> protanopia</label>
+      <label><input type="radio" name="vision-deficiency" value="tritanopia"> tritanopia</label>
+    </div>
+    <script type="module">
+      const wrapper = document.querySelector('div');
+      const filtered = document.querySelector('.filtered');
+
+      wrapper.addEventListener('click', (event) => {
+        const target = event.target;
+        if (target.matches('input')) {
+          const value = target.value === 'none' ? 'none' : `url(#${target.value})`;
+          // TODO: use `attributeStyleMap` once Safari and Firefox support it.
+          filtered.style.filter = value;
+        }
+      });
+    </script>
+  </body>
+</html>

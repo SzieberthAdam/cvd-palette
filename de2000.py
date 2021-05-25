@@ -14,7 +14,7 @@ def delta_e_from_lab(lab1, lab2):
 def get_lab_arr(rgb_arr):
     xyz_arr = colour.sRGB_to_XYZ(rgb_arr/255)
     lab_arr = colour.XYZ_to_Lab(xyz_arr)
-    return lab_arr
+    return lab_arr.reshape(rgb_arr.shape)
 
 def get_pal_delta_e_pairs(rgb_arr):
     L = []
@@ -31,12 +31,15 @@ def get_pal_delta_e_pairs_report(rgb_arr):
         S.append(f'{palstr(comb)} -> {dEval}')
     return "\n".join(S) + "\n"
 
-def get_pal_delta_e(rgb_arr):
-    lab_arr = get_lab_arr(rgb_arr)
+def get_pal_delta_e_from_lab_arr(lab_arr):
     combs = list(itertools.combinations(lab_arr, 2))
     lab1_arr, lab2_arr = np.array(list(zip(*combs)))
     delta_e_arr = delta_e_from_lab(lab1_arr, lab2_arr)
     return tuple(sorted(delta_e_arr))
+
+def get_pal_delta_e(rgb_arr):
+    lab_arr = get_lab_arr(rgb_arr)
+    return get_pal_delta_e_from_lab_arr(lab_arr)
 
 def palstr(palarr):
     return " ".join(rgbstr(rgb) for rgb in palarr)

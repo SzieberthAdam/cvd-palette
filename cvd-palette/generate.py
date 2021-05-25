@@ -1,8 +1,10 @@
 # standard libraries
+import bisect
 import collections
 from datetime import datetime
 import itertools
 import json
+import math
 import pathlib
 import sys
 
@@ -12,7 +14,9 @@ sys.path.insert(0, str(_importdir))
 
 # 3rd party libraries (module file available)
 import clut
+import de2000
 import pal
+import rgbpyramid
 
 sys.path.remove(str(_importdir))
 
@@ -43,6 +47,24 @@ def rgbstr(rgb):
 def palstr(palarr):
     return ", ".join(rgbstr(rgb) for rgb in palarr)
 
+
+def idxtcnt(pools, nums=None):
+    nums = nums or [1] * len(pools)
+    v = 1
+    for i, pool in enumerate(pools):
+        v *= math.comb(len(pool),nums[i])
+    return v
+
+def idxtgen(pools, nums=None, i=0):
+    nums = nums or [1] * len(pools)
+    for a in itertools.combinations(tuple(range(len(pools[0]))), nums[0]):
+        t = tuple((i, v) for v in a)
+        if len(pools) == 1:
+            yield t
+        else:
+            for b in idxtgen(pools[1:], nums=nums[1:], i=i+1):
+                yield t + b
+
 class keydefaultdict(collections.defaultdict):
     def __missing__(self, key):
         ret = self[key] = self.default_factory(key)
@@ -61,13 +83,15 @@ if __name__ == "__main__":
     max_dE = None
 
     root = pathlib.Path(__file__).parent.resolve()
+    cvdpaldir = root / f'cvd{cvd_n}'
+
     haldclutdir = root.parent / "haldclut"
 
     colviss = {
-        "normal": haldclutdir / "identity" / "identity.png",
-        "deuteranopia": haldclutdir / "cvd" / "deuta.machado2010.png",
-        "protanopia": haldclutdir / "cvd" / "prota.machado2010.png",
-        "tritanopia": haldclutdir / "cvd" / "trita.machado2010.png",
+        "normal":       clut.CLUT(str(haldclutdir / "identity" / "identity.png")),
+        "deuteranopia": clut.CLUT(str(haldclutdir / "cvd" / "deuta.machado2010.png")),
+        "protanopia":   clut.CLUT(str(haldclutdir / "cvd" / "prota.machado2010.png")),
+        "tritanopia":   clut.CLUT(str(haldclutdir / "cvd" / "trita.machado2010.png")),
     }
 
     graypalroot = root.parent / "grayscale-palette"
@@ -79,90 +103,105 @@ if __name__ == "__main__":
     isoluminant_fnames = {v: f'{v:x}.png' for v in midgrays}
 
     level = 2
-    leveldir = root.parent / "isoluminant" / f'level{level:0>3}'
 
-    colors = []
-    for v in graypal:
-        if v in {0, 255}:
-            colors.append((v, v, v))
+    cntcap = 55555
+    level = 256
+    colorpools_rgbs = {}
+    while True:
+        leveldir = root.parent / "isoluminant" / f'level{level:0>3}'
+
+        colorpools_rgbs[level] = colorpools_rgb = []
+        for v in graypal:
+            if v in {0, 255}:
+                colorpools_rgb.append(np.array(((v, v, v),), dtype="uint8"))
+            else:
+                img = Image.open(str(leveldir / isoluminant_fnames[v]))
+                arr = np.array(img).reshape((-1, 3))
+                colorpools_rgb.append(arr)
+        cnt = idxtcnt(colorpools_rgb)
+        if level==2 or cnt <= cntcap:
+            break
         else:
-            img = Image.open(str(leveldir / isoluminant_fnames[v]))
-            arr = np.array(img)
+            level = level // 2
+
+    high_n = 100
+
+    while True:
+        print(f'=== LEVEL: {level}')
+        highs = collections.defaultdict(set)
+        high_dE = []
+        high_pal = []
+
+        cv_colorpools_rgb = {}
+        cv_colorpools_lab = {}
+        for cv, cvhaldclut in colviss.items():
+            cv_colorpools_rgb[cv] = [cvhaldclut.clut[a[:,0], a[:,1], a[:,2]] for a in colorpools_rgb]
+            cv_colorpools_lab[cv] = [de2000.get_lab_arr(rgb_arr) for rgb_arr in cv_colorpools_rgb[cv]]
+
+        cnt = idxtcnt(colorpools_rgb)
+        for c, idxt in enumerate(idxtgen(colorpools_rgb), 1):
+            if c==1 or not c % 100000:
+                print(f'at {c} of {cnt}')
+            #print(c)
+            rgb_palette = tuple(tuple(colorpools_rgb[i][j]) for i, j in idxt)
+            idxt_dE = (999999999,)
+            for cv, lab_pool in cv_colorpools_lab.items():
+                lab_arr = np.array([lab_pool[i][j] for i, j in idxt], dtype="float64")
+                dE = de2000.get_pal_delta_e_from_lab_arr(lab_arr)
+                if dE < idxt_dE:
+                    idxt_dE = dE
+            highs[idxt_dE].add(rgb_palette)
+
+        if level == 256:
+            break
+        else:
+            old_level = level
+            level *= 2
+            new_cnt = 0
+            colorpools_rgb_set = [set() for _ in range(cvd_n)]
+            dEsorted = sorted(highs, reverse=True)
+            print(f'dE = {dEsorted[0][0]}')
+            ref_cnt = 0
+            for dE in dEsorted:
+                pal_rgbs = highs[dE]
+                for pal_rgb in pal_rgbs:
+                    for i, rgb in enumerate(pal_rgb):
+                        if rgb in {(0, 0, 0), (255, 255, 255)}:
+                            new_set = {rgb}
+                        else:
+                            ref_rgb = rgbpyramid.get_ref_rgb(rgb, old_level)
+                            new_set = set(
+                                tuple(rgb1) for rgb1 in colorpools_rgbs[level][i]
+                                if rgbpyramid.get_ref_rgb(rgb1, old_level) == ref_rgb
+                            )
+                        colorpools_rgb_set[i] |= new_set
+                new_cnt = idxtcnt(colorpools_rgb_set)
+                assert new_cnt
+                if 2*ref_cnt <= new_cnt:
+                    print(f'at {new_cnt} / {cntcap} for level {level}')
+                    ref_cnt = new_cnt
+                if cntcap < new_cnt:
+                    break
+            colorpools_rgb = [np.array(tuple(s),dtype="uint8") for s in colorpools_rgb_set]
+
+    high_dE = []
+    high_pal = []
+    for dE in dEsorted:
+        for rgb_palette in highs[dE]:
+            high_dE.append(dE)
+            high_pal.append(rgb_palette)
+        if high_n <= len(high_pal):
             break
 
+    valstrparts = []
+    for i, t in enumerate(high_dE):
+        _hstr = f'{i}: '
+        _vstr = "   ".join([f'{x:0<18}'[:18] for x in t])
+        valstrparts.append(f'{_hstr:<6}{_vstr}')
+    cvdpaldir.mkdir(parents=True, exist_ok=True)
+    with (cvdpaldir / f'cvd{cvd_n}.top{high_n}.de2000.txt').open("w") as f:
+        f.write("\n".join(valstrparts) + "\n")
 
-
-#    fpath_palgraylvls = root/"graylevel_palgraylvls.json"
-#    with fpath_palgraylvls.open("r") as f:
-#        graylevel_palgraylvls = json.load(f)
-#    graylvls = tuple(graylevel_palgraylvls[f'cvd{CVD}.graylvls'])
-#
-#    if CVD == 3:
-#        dirname0 = root / "achromatopsiacolorsbygraylvl/full"
-#    elif CVD == 4:
-#        dirname0 = root / "achromatopsiacolorsbygraylvl/full"
-#    #dirname0 = root / "achromatopsiacolorsbygraylvl/256color_ct"
-#    else:
-#        dirname0 = root / "achromatopsiacolorsbygraylvl/32color_ct"
-#    dirname1 = root / f'cvd{CVD}'
-#    dirname1.mkdir(parents=True, exist_ok=True)  # ensure directory
-#
-#    labmap = keydefaultdict(lambda key: rgb_to_lab(key))
-#    #deltaEmap = keydefaultdict(lambda key: delta_e(*key))
-#
-#    eh = {}
-#    for cvdkey in cvds:
-#        p = root / f'haldclut/{cvdkey}.png'
-#        eh[cvdkey] = clut.CLUT(str(p))
-#
-#    graylvl_palrgbs = {0x00: [(0, 0, 0)], 0xFF: [(255, 255, 255)]}
-#    graylvl_palarr = {}
-#    graylvl_pallabarr = {}
-#    graylvl_palimg = {}
-#    for graylvl in graylvls:
-#        if graylvl in (0x00, 0xff):
-#            continue
-#        img = Image.open(str(dirname0 / f'{graylvl:0>2x}.png'))
-#        graylvl_palimg[graylvl] = img
-#        arr = np.asarray(img, dtype=np.uint8)
-#        graylvl_palarr[graylvl] = arr
-#        graylvl_pallabarr[graylvl] = rgbarr_to_labarr(arr)
-#        graylvl_palrgbs[graylvl] = list(tuple(a.tolist()) for a in arr[0])
-#
-#    sorted_graylvl_palrgbs = tuple(sorted(graylvl_palrgbs))
-#    it = itertools.product(*[graylvl_palrgbs[graylvl] for graylvl in sorted_graylvl_palrgbs])
-#
-#    max_dE = max_dE or graylevel_palgraylvls[f'cvd{CVD}.graylvls.deltaE']
-#    max_dE_pals = []
-#    for i, pal in enumerate(it):
-#        if not i % 100000:
-#            print(f'i = {i}')
-#        palarr = np.array([pal], dtype=np.uint8) # [pal] makes it 1 x n x 3 size
-#        pal_dE = 1000
-#        for cvdtyp in cvds:
-#            cvd_dE = 1000
-#            cvdpalarr = eh[cvdtyp](palarr)
-#            cvdlabs = [labmap[tuple(rgb)] for rgb in cvdpalarr[0]]
-#            for labpair in itertools.combinations(cvdlabs, 2):
-#                #dE = deltaEmap[labpair]
-#                dE = delta_e(*key)
-#                cvd_dE = min(cvd_dE, dE)
-#            pal_dE = min(pal_dE, cvd_dE)
-#        if max_dE < pal_dE:
-#            max_dE_pals = []
-#            print()
-#            print(f'{pal_dE}')
-#        if max_dE <= pal_dE:
-#            max_dE = pal_dE
-#            max_dE_pals.append(pal)
-#            palstr_ = palstr(pal)
-#            print(palstr_)
-#            with (dirname1 / f'{pal_dE}.txt').open("a") as f:
-#                f.write("\n" + palstr_)
-#
-#    with (dirname1 / f'deltae.txt').open("w") as f:
-#        json.dump(max_dE, f, **json_dump_kwargs)
-#    with (dirname1 / f'palettes.json').open("w") as f:
-#        json.dump(max_dE_pals, f, **json_dump_kwargs)
-#    with (dirname1 / f'palettes.txt').open("w") as f:
-#        f.write("\n".join(palstr(pal) for pal in max_dE_pals))
+    high_pal_arr = np.array(tuple(high_pal), dtype="uint8")
+    high_pal_img = Image.fromarray(high_pal_arr, 'RGB')
+    high_pal_img.save(cvdpaldir / f'cvd{cvd_n}.top{high_n}.png')

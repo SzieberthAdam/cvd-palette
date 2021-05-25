@@ -16,72 +16,9 @@ sys.path.insert(0, str(_parentdir))
 # 3rd party libraries (module file available)
 import clut
 import de2000
+import rgbpyramid
 
 sys.path.remove(str(_parentdir))
-
-TOPLEVEL = 256
-
-def iterrgb(points=None):
-    points = points or tuple(range(256))
-    for r in points:
-        for g in points:
-            for b in points:
-                yield r, g, b
-
-def get_ref_rgb(rgb, dist):
-    result = [None] * 3
-    for i in range(3):
-        d, m = divmod(rgb[i], dist)
-        v = dist * (d + (1 if dist <= 2*m else 0))
-        result[i] = v
-    return tuple(result)
-
-def get_distance(rgb1, rgb2):
-    return (rgb1[0]-rgb2[0])**2 + (rgb1[1]-rgb2[1])**2 + (rgb1[2]-rgb2[2])**2
-
-def quantiles(data, *, n=4, method='exclusive'):
-    """Divide *data* into *n* continuous intervals with equal probability.
-
-    Returns a list of (n - 1) cut points separating the intervals.
-
-    Set *n* to 4 for quartiles (the default).  Set *n* to 10 for deciles.
-    Set *n* to 100 for percentiles which gives the 99 cuts points that
-    separate *data* in to 100 equal sized groups.
-
-    The *data* can be any iterable containing sample.
-    The cut points are linearly interpolated between data points.
-
-    If *method* is set to *inclusive*, *data* is treated as population
-    data.  The minimum value is treated as the 0th percentile and the
-    maximum value is treated as the 100th percentile.
-    """
-    if n < 1:
-        raise StatisticsError('n must be at least 1')
-    data = sorted(data)
-    ld = len(data)
-    if ld < 2:
-        raise StatisticsError('must have at least two data points')
-    if method == 'inclusive':
-        print("here")
-        m = ld - 1
-        result = []
-        for i in range(1, n):
-            j = i * m // n
-            delta = i*m - j*n
-            interpolated = (data[j] * (n - delta) + data[j+1] * delta) / n
-            result.append(interpolated)
-        return result
-    if method == 'exclusive':
-        m = ld + 1
-        result = []
-        for i in range(1, n):
-            j = i * m // n                               # rescale i to m/n
-            j = 1 if j < 1 else ld-1 if j > ld-1 else j  # clamp to 1 .. ld-1
-            delta = i*m - j*n                            # exact integer math
-            interpolated = (data[j-1] * (n - delta) + data[j] * delta) / n
-            result.append(interpolated)
-        return result
-    raise ValueError(f'Unknown method: {method!r}')
 
 def rgbstr(rgb):
     r, g, b = rgb
@@ -91,14 +28,14 @@ def rgbstr(rgb):
 if __name__ == "__main__":
 
     if len(sys.argv) < 2:
-        level = TOPLEVEL
+        level = rgbpyramid.TOPLEVEL
     else:
         try:
             level = int(sys.argv[1])
             assert 1 < level
         except (ValueError, AssertionError):
             print(f'ERROR! 1< integer palette size was expected as argument.')
-            print(f'Hint: {TOPLEVEL} represents full palette.')
+            print(f'Hint: {rgbpyramid.TOPLEVEL} represents full palette.')
             print(f'Hint: Otherwise, a power of two plus one value (3, 5, 9, 17, 33, ...) is recommended.')
             sys.exit(1)
 
@@ -117,10 +54,10 @@ if __name__ == "__main__":
 
     eh = clut.CLUT(str(_parentdir / "haldclut/gray/gray.szieberth.png"))
 
-    if level == TOPLEVEL:
+    if level == rgbpyramid.TOPLEVEL:
 
         y_rgbs = collections.defaultdict(list)
-        for r, g, b in iterrgb():
+        for r, g, b in rgbpyramid.iterrgb():
             y = eh.clut[r][g][b][0]
             y_rgbs[y].append((r, g, b))
 
@@ -144,20 +81,17 @@ if __name__ == "__main__":
     else:
 
         _NORGB = (None, None)
-        dist = int(256 / level)
-
-        refpoints = list(range(0, 257, dist))
         y_rgbs = collections.defaultdict(dict)
 
-        for rgb in iterrgb():
+        for rgb in rgbpyramid.iterrgb():
             r, g, b = rgb
             if g == 255 and b == 255:
                 print(rgbstr(rgb))
             y = eh.clut[r][g][b][0]
             d = y_rgbs[y]
-            refrgb = get_ref_rgb(rgb, dist)
+            refrgb = rgbpyramid.get_ref_rgb(rgb, level)
             currdistance, currrgb = d.get(refrgb, _NORGB)
-            distance = get_distance(rgb, refrgb)
+            distance = rgbpyramid.get_distance(rgb, refrgb)
             if currdistance is None or distance < currdistance:
                 d[refrgb] = (distance, rgb)
             elif distance == currdistance:

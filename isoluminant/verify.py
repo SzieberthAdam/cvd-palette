@@ -23,31 +23,31 @@ def rgbstr(rgb):
 
 if __name__ == "__main__":
 
-    print("rgbpyramid verification...")
+#    print("rgbpyramid verification...")
+#
+#    level = rgbpyramid.BOTTOMLEVEL
+#    while level <= rgbpyramid.TOPLEVEL:
+#        s = set(rgbpyramid.get_ref_rgbs(level))
+#        d = collections.defaultdict(lambda: 0)
+#        for rgb in rgbpyramid.iterrgb():
+#            ref_rgb = rgbpyramid.get_ref_rgb(rgb, level)
+#            d[ref_rgb] += 1
+#        assert s == set(d)
+#        for rgb in sorted(d, key=lambda k: (d[k], k)):
+#            print(f'{rgb}: {d[rgb]}')
 
-    level = rgbpyramid.BOTTOMLEVEL
-    while level <= rgbpyramid.TOPLEVEL:
-        s = set(rgbpyramid.get_ref_rgbs(level))
-        d = collections.defaultdict(lambda: 0)
-        for rgb in rgbpyramid.iterrgb():
-            ref_rgb = rgbpyramid.get_ref_rgb(rgb, level)
-            d[ref_rgb] += 1
-        assert s == set(d)
-        for rgb in sorted(d, key=lambda k: (d[k], k)):
-            print(f'{rgb}: {d[rgb]}')
 
-
-    level = rgbpyramid.BOTTOMLEVEL
+    level = rgbpyramid.BOTTOMLEVEL * 2
 
     while level < rgbpyramid.TOPLEVEL:
         print(f'== LEVEL {level}')
 
         for y in range(256):
             print(f'{y:0>2X}')
-            img0 = Image.open(str(_thisdir / f'level{level:0>3}' / f'{y:0>2x}.png'))
+            img0 = Image.open(str(_thisdir / f'level{(level//2):0>3}' / f'{y:0>2x}.png'))
             rgb0 = {tuple(a) for a in np.array(img0).reshape((-1, 3))}
-            img1 = Image.open(str(_thisdir / f'level{(level*2):0>3}' / f'{y:0>2x}.png'))
+            img1 = Image.open(str(_thisdir / f'level{level:0>3}' / f'{y:0>2x}.png'))
             rgb1 = {tuple(a) for a in np.array(img1).reshape((-1, 3))}
-            assert not rgb0 - rgb1
+            assert not rgb0 - rgb1, f'following RGB colors are missing: {rgb0-rgb1}'
 
         level *= 2

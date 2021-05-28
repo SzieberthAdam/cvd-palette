@@ -1,3 +1,5 @@
+import math
+
 BOTTOMLEVEL = 2
 TOPLEVEL = 256
 
@@ -33,4 +35,9 @@ def get_ref_rgb(rgb, level, max255=False):
     return tuple(result)
 
 def get_distance(rgb1, rgb2):
-    return (rgb1[0]-rgb2[0])**2 + (rgb1[1]-rgb2[1])**2 + (rgb1[2]-rgb2[2])**2
+    v = (int(rgb1[0])-int(rgb2[0]))**2 + (int(rgb1[1])-int(rgb2[1]))**2 + (int(rgb1[2])-int(rgb2[2]))**2
+    return math.sqrt(v)
+
+
+def get_distance_fast(rgb1, rgb2):
+    return max(abs(int(rgb1[i])-int(rgb2[i])) for i in range(3))

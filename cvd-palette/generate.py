@@ -3,7 +3,6 @@ import bisect
 import collections
 from datetime import datetime
 import itertools
-import json
 import math
 import pathlib
 import sys
@@ -73,14 +72,20 @@ class keydefaultdict(collections.defaultdict):
 
 if __name__ == "__main__":
 
-    json_dump_kwargs = {'ensure_ascii': False, 'indent': '\t', 'sort_keys': True}
+    np.seterr(all='raise')
 
-    if len(sys.argv) < 2 or 3 < len(sys.argv) or not sys.argv[1].isdecimal():
+    if len(sys.argv) < 2 or not sys.argv[1].isdecimal():
         print("Integer CVD number is expected as first command line argument!")
         sys.exit(1)
     else:
         cvd_n = int(sys.argv[1])
-    max_dE = None
+
+    if 2 < len(sys.argv) and sys.argv[2].isdecimal():
+        cntcap = int(sys.argv[2])
+    else:
+        cntcap = 256**3  # 16777216
+
+    print(f'Making CVD{cvd_n} palette with iteration cap of {cntcap} ...')
 
     root = pathlib.Path(__file__).parent.resolve()
     cvdpaldir = root / f'cvd{cvd_n}'
@@ -102,9 +107,6 @@ if __name__ == "__main__":
     midgrays = tuple(graypal[1:-1])
     isoluminant_fnames = {v: f'{v:x}.png' for v in midgrays}
 
-    level = 2
-
-    cntcap = 55555
     level = 256
     colorpools_rgbs = {}
     while True:
@@ -124,13 +126,10 @@ if __name__ == "__main__":
         else:
             level = level // 2
 
-    high_n = 100
-
     while True:
         print(f'=== LEVEL: {level}')
         highs = collections.defaultdict(set)
-        high_dE = []
-        high_pal = []
+        highs_pop = 0
 
         cv_colorpools_rgb = {}
         cv_colorpools_lab = {}
@@ -151,39 +150,67 @@ if __name__ == "__main__":
                 if dE < idxt_dE:
                     idxt_dE = dE
             highs[idxt_dE].add(rgb_palette)
+            highs_pop += 1
+
+            if (highs_pop % 1000000) == 0:  # save some memory
+                print("combinations at 1000000; cutting back...")
+                dEsorted = sorted(highs)
+                for dE in dEsorted:
+                    c = len(highs[dE])
+                    del highs[dE]
+                    highs_pop -= c
+                    if highs_pop <= 500000:
+                        break
+                print(f'{highs_pop} combinations were kept.')
+
 
         if level == 256:
             break
         else:
             old_level = level
             level *= 2
+            distancecap = 1.5 * (256 / old_level)
             new_cnt = 0
             colorpools_rgb_set = [set() for _ in range(cvd_n)]
+            colorpools_rgb_set[0] = {(0, 0, 0)}
+            colorpools_rgb_set[-1] = {(255, 255, 255)}
             dEsorted = sorted(highs, reverse=True)
             print(f'dE = {dEsorted[0][0]}')
             ref_cnt = 0
-            for dE in dEsorted:
+            pal_count = 0
+            max_dE = dEsorted[0][0]
+            for c0, dE in enumerate(dEsorted):
+                if 1.25 * dE[0] < max_dE:
+                    break
+            top25_dE = dEsorted[:25]
+            trans_dE = sorted(set(dEsorted[0:c0+1:max(1, c0//25)]) - set(top25_dE), reverse=True)
+            rem_dE = sorted(set(dEsorted) - set(top25_dE) - set(trans_dE), reverse=True)
+
+            for c1, dE in enumerate(itertools.chain(top25_dE, trans_dE, rem_dE)):
                 pal_rgbs = highs[dE]
                 for pal_rgb in pal_rgbs:
-                    for i, rgb in enumerate(pal_rgb):
-                        if rgb in {(0, 0, 0), (255, 255, 255)}:
-                            new_set = {rgb}
-                        else:
-                            ref_rgb = rgbpyramid.get_ref_rgb(rgb, old_level)
-                            new_set = set(
-                                tuple(rgb1) for rgb1 in colorpools_rgbs[level][i]
-                                if rgbpyramid.get_ref_rgb(rgb1, old_level) == ref_rgb
-                            )
+                    for i, rgb in enumerate(pal_rgb[1:-1], 1):
+                        new_set = {rgb}
+                        for rgb1 in colorpools_rgbs[level][i]:
+                            #print(rgb, rgb1)
+                            distance = rgbpyramid.get_distance_fast(rgb, rgb1)
+                            if distance <= distancecap:
+                                new_set.add(tuple(rgb1))  # rgb1 is np.ndarray of np.uint8
                         colorpools_rgb_set[i] |= new_set
+                    pal_count += 1
                 new_cnt = idxtcnt(colorpools_rgb_set)
                 assert new_cnt
                 if 2*ref_cnt <= new_cnt:
-                    print(f'at {new_cnt} / {cntcap} for level {level}')
+                    print(f'at {new_cnt} / {cntcap} for level {level} using top {pal_count}')
                     ref_cnt = new_cnt
+                if c1 <= len(top25_dE) + len(trans_dE):
+                    continue
                 if cntcap < new_cnt:
                     break
             colorpools_rgb = [np.array(tuple(s),dtype="uint8") for s in colorpools_rgb_set]
+            print(f'top {pal_count} palettes are used for the next level')
 
+    high_n = 100
     high_dE = []
     high_pal = []
     for dE in dEsorted:

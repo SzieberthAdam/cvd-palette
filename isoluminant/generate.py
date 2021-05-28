@@ -20,6 +20,12 @@ import rgbpyramid
 
 sys.path.remove(str(_parentdir))
 
+sys.path.insert(0, str(_parentdir / "script"))
+
+import imgpalsort
+
+sys.path.remove(str(_parentdir / "script"))
+
 def rgbstr(rgb):
     r, g, b = rgb
     return f'#{r:0>2X}{g:0>2X}{b:0>2X}'
@@ -101,10 +107,14 @@ if __name__ == "__main__":
                     d[refrgb] = (distance, rgb)
 
         for y, d in y_rgbs.items():
-            rgbs = sorted([rgb for distance, rgb in d.values()])
-
+            rgbs = {(y, y, y)} | {rgb for distance, rgb in d.values()}
+            if rgbpyramid.BOTTOMLEVEL < level:
+                prev_level = level // 2
+                imgprev = Image.open(str(_thisdir / f'level{prev_level:0>3}' / f'{y:0>2x}.png'))
+                rgbs |= {tuple(a) for a in np.array(imgprev).reshape((-1, 3))}
             imgout = Image.new('RGB', [len(rgbs), 1])
-            imgout.putdata(rgbs)
+            imgout.putdata(tuple(rgbs))
+            imgout = imgpalsort.sort_by_hsv(imgout)
             imgoutp = _thisdir / leveldirname / f'{y:0>2x}.png'
             imgout.save(imgoutp)
             print(f'"{y:0>2x}.png" saved.')

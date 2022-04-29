@@ -24,7 +24,7 @@ randomRGBn = 100
 
 dist = int(256 / level)
 refpoints = tuple(range(0, 257, dist))
-width, height = 150, 15
+width, height = 80, 15
 
 def iterrgb(points=None):
     points = points or tuple(range(256))
@@ -34,7 +34,10 @@ def iterrgb(points=None):
                 yield r, g, b
 
 grayclut_paths = list(_thisdir.glob("gray.*.png"))
-grayclut = {p.stem[5:]: clut.CLUT(str(p)) for p in grayclut_paths}
+grayclut = {}
+for p in grayclut_paths:
+    print(f'generating hald clut for {p} ...')
+    grayclut[p.stem[5:]] = clut.CLUT(str(p))
 
 allpoints = list(iterrgb(refpoints))
 for _ in range(randomRGBn):
@@ -46,6 +49,7 @@ img = Image.new('RGB', (width*len(grayclut), height*(len(allpoints))))
 drawctx = ImageDraw.Draw(img)  # draw context
 
 for c, name in enumerate(sorted(grayclut)):
+    print(name)
     eh = grayclut[name]
     for r, RGB in enumerate(allpoints):
         RGB = tuple(max(0, min(255, x)) for x in RGB)

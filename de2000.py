@@ -44,6 +44,9 @@ def get_pal_delta_e(rgb_arr):
 def palstr(palarr):
     return " ".join(rgbstr(rgb) for rgb in palarr)
 
+def palstr2pal(s):
+    return tuple(str2rgb(s_) for s_ in s.split())
+
 def rgbstr(rgb):
     r, g, b = rgb
     return f'#{r:0>2X}{g:0>2X}{b:0>2X}'

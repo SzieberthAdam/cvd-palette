@@ -1,4 +1,4 @@
-import math
+import itertools
 
 LEVEL = (
     (
@@ -327,7 +327,7 @@ LEVELRGB = (
     (0xF4, 0xF3, 0xF3, 0xFC, 0xFC, 0xFF),
     (0xF5, 0xF6, 0xF3, 0xFC, 0xFC, 0xFF),
     (0xF6, 0xF6, 0xF3, 0xFC, 0xFC, 0xFF),
-    (0xF7, 0xF6, 0xFC, 0xFC, 0xFC, 0xFF),
+    (0xF7, 0xF6, 0xF3, 0xFC, 0xFC, 0xFF),
     (0xF8, 0xF9, 0xFC, 0xFC, 0xFC, 0xFF),
     (0xF9, 0xF9, 0xFC, 0xFC, 0xFC, 0xFF),
     (0xFA, 0xF9, 0xFC, 0xFC, 0xFC, 0xFF),
@@ -339,11 +339,37 @@ LEVELRGB = (
 )
 
 
-def iterrgb(level):
-    for r in LEVEL[level]:
-        for g in LEVEL[level]:
-            for b in LEVEL[level]:
-                yield r, g, b
-
 def get_levelrgb(rgb, level):
     return tuple(LEVELRGB[rgb[i]][level] for i in range(3))
+
+
+def get_levelvals(val, level, val00fffixed=False):
+    if level == 0 or (val00fffixed and val in {0x00, 0xFF}):
+        return (val,)
+    else:
+        return tuple(sorted(set(
+            t[level-1]
+            for t in LEVELRGB
+            if t[level] == val
+        )))
+
+
+def iterrgb(level, source_rgb=None, val00fffixed=False):
+    if source_rgb is None:
+        for r in LEVEL[level]:
+            for g in LEVEL[level]:
+                for b in LEVEL[level]:
+                    yield r, g, b
+    else:
+        for r in get_levelvals(source_rgb[0], level, val00fffixed=val00fffixed):
+            for g in get_levelvals(source_rgb[1], level, val00fffixed=val00fffixed):
+                for b in get_levelvals(source_rgb[2], level, val00fffixed=val00fffixed):
+                    yield r, g, b
+
+
+def iterpalettes(level, source_palette, val00fffixed=False):
+    pools = tuple(
+        tuple(iterrgb(level, source_rgb, val00fffixed=val00fffixed))
+        for source_rgb in source_palette
+    )
+    yield from itertools.product(*pools)

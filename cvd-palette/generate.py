@@ -28,6 +28,8 @@ import numpy as np
 
 json_dump_kwargs = {'ensure_ascii': False, 'indent': '\t', 'sort_keys': True}
 
+PALETTE_SIZE = 4096
+
 def delta_e(lab1, lab2):
     lab1_ = np.array(lab1)
     lab2_ = np.array(lab2)
@@ -85,22 +87,22 @@ def write_palette(palettes, filestem):
     lines = tuple(
         f'{i:>4}: '
         + " ".join([f'{v:>8.4f}' for v in de])
-        for i, (de, rgb_palette) in enumerate(sorted_palettes)
+        for i, (de, palette) in enumerate(sorted_palettes)
     )
     with de_file.open("w") as f:
         f.write("\n".join( lines + ("",) ))
     pallist_file = pathlib.Path(filestem).with_suffix(".pal.txt")
     lines = tuple(
         f'{i:>4}: '
-        + palstr(rgb_palette)
-        for i, (de, rgb_palette) in enumerate(sorted_palettes)
+        + palstr(palette)
+        for i, (de, palette) in enumerate(sorted_palettes)
     )
     with pallist_file.open("w") as f:
         f.write("\n".join( lines + ("",) ))
     png_file = pathlib.Path(filestem).with_suffix(".pal.png")
     n_colors = len(sorted_palettes[0][1])
     img_arr = np.array(
-        tuple(rgb_palette for de, rgb_palette in sorted_palettes),
+        tuple(palette for de, palette in sorted_palettes),
         dtype="uint8"
     ).reshape((len(sorted_palettes), n_colors, 3))
     img = Image.fromarray(img_arr, 'RGB')
@@ -185,37 +187,96 @@ if __name__ == "__main__":
 
     ## start
 
-    colorpools_rgb = level_isoluminant_color_count[level]
+    cvdpaldir = root / f'cvd{cvd_n}'
+    cvdpaldir.mkdir(parents=True, exist_ok=True)
+
+    filestem = cvdpaldir / f'cvd{cvd_n}-lvl{start_level}-{level}'
+    png_file = pathlib.Path(filestem).with_suffix(".pal.png")
 
     cv_colorpools_rgb = {}
     cv_colorpools_lab = {}
-    for cv, cvhaldclut in colviss.items():
-        cv_colorpools_rgb[cv] = [cvhaldclut.clut[a[:,0], a[:,1], a[:,2]] for a in colorpools_rgb]
-        cv_colorpools_lab[cv] = [de2000.get_lab_arr(rgb_arr) for rgb_arr in cv_colorpools_rgb[cv]]
 
-    palettes = []
+    if not png_file.is_file():
 
-    for c, idxt in enumerate(idxtgen(colorpools_rgb), 1):
-        rgb_palette = tuple(tuple(int(x) for x in colorpools_rgb[i][j]) for i, j in idxt)
-        idxt_dE = (999999999,)
-        for cv, lab_pool in cv_colorpools_lab.items():
-            lab_arr = np.array([lab_pool[i][j] for i, j in idxt], dtype="float64")
-            dE = de2000.get_pal_delta_e_from_lab_arr(lab_arr)
-            if dE < idxt_dE:
-                idxt_dE = dE
-        t = (idxt_dE, rgb_palette)
-        bisect.insort_right(palettes, t)
+        colorpools_rgb = level_isoluminant_color_count[level]
 
-        if c % 10000 == 0:
-            print(c)
-            palettes = palettes[-4096:]
+        for cv, cvhaldclut in colviss.items():
+            cv_colorpools_rgb[cv] = [cvhaldclut.clut[a[:,0], a[:,1], a[:,2]] for a in colorpools_rgb]
+            cv_colorpools_lab[cv] = [de2000.get_lab_arr(rgb_arr) for rgb_arr in cv_colorpools_rgb[cv]]
 
-    palettes = palettes[-4096:]
+        palettes = []
 
-    cvdpaldir = root / f'cvd{cvd_n}'
-    filestem = cvdpaldir / f'cvd{cvd_n}.lvl{start_level}.{level}'
-    cvdpaldir.mkdir(parents=True, exist_ok=True)
-    write_palette(palettes, filestem)
+        for c, idxt in enumerate(idxtgen(colorpools_rgb)):
+            palette = tuple(tuple(int(x) for x in colorpools_rgb[i][j]) for i, j in idxt)
+            idxt_dE = (999999999,)
+            for cv, lab_pool in cv_colorpools_lab.items():
+                lab_arr = np.array([lab_pool[i][j] for i, j in idxt], dtype="float64")
+                dE = de2000.get_pal_delta_e_from_lab_arr(lab_arr)
+                if dE < idxt_dE:
+                    idxt_dE = dE
+            t = (idxt_dE, palette)
+            bisect.insort_right(palettes, t)
+
+            if c % 10000 == 0:
+                print(c)
+                palettes = palettes[-PALETTE_SIZE:]
+
+        palettes = palettes[-PALETTE_SIZE:]
+        write_palette(palettes, filestem)
+
+    while 0 < level:
+        prev_filestem = filestem
+        prev_png_file = png_file
+        level -= 1
+        filestem = cvdpaldir / f'cvd{cvd_n}-lvl{start_level}-{level}'
+        png_file = pathlib.Path(filestem).with_suffix(".pal.png")
+
+        if not png_file.is_file():
+
+            prev_img = Image.open(str(prev_png_file))
+            prev_arr = np.asarray(prev_img)
+
+            colorpools_rgb = level_isoluminant_color_count[level]
+            colorpool_idxt = {}
+            for i, colorpool_rgb in enumerate(colorpools_rgb):
+                for j, rgb in enumerate(colorpool_rgb):
+                    colorpool_idxt[tuple(rgb)] = i, j
+            for cv, cvhaldclut in colviss.items():
+                cv_colorpools_rgb[cv] = [cvhaldclut.clut[a[:,0], a[:,1], a[:,2]] for a in colorpools_rgb]
+                cv_colorpools_lab[cv] = [de2000.get_lab_arr(rgb_arr) for rgb_arr in cv_colorpools_rgb[cv]]
+
+            palettes = []
+
+            tot = 0
+            p = 0
+            for p, source_palette in enumerate(prev_arr):
+                gen = rgbpyramid.iterpalettes(level+1, source_palette, val00fffixed=True)
+                c = 0
+                for palette in gen:
+                    try:
+                        idxt = tuple(
+                            colorpool_idxt[rgb]
+                            for i, rgb in enumerate(palette)
+                        )
+                    except KeyError:
+                        continue
+                    idxt_dE = (999999999,)
+                    for cv, lab_pool in cv_colorpools_lab.items():
+                        lab_arr = np.array([lab_pool[i][j] for i, j in idxt], dtype="float64")
+                        dE = de2000.get_pal_delta_e_from_lab_arr(lab_arr)
+                        if dE < idxt_dE:
+                            idxt_dE = dE
+                    t = (idxt_dE, palette)
+                    bisect.insort_right(palettes, t)
+                    c += 1
+                    tot += 1
+
+                    if tot % 10000 == 0:
+                        print(f'{tot}: palette.{p}; child.{c}')
+                        palettes = palettes[-PALETTE_SIZE:]
+
+            palettes = palettes[-PALETTE_SIZE:]
+            write_palette(palettes, filestem)
 
 
 
@@ -275,14 +336,14 @@ if __name__ == "__main__":
 #                    prevprintc = c
 #                    nextprintc = c + random.randint(100, 500)
 #
-#                rgb_palette = tuple(tuple(int(x) for x in colorpools_rgb[i][j]) for i, j in idxt)
+#                palette = tuple(tuple(int(x) for x in colorpools_rgb[i][j]) for i, j in idxt)
 #                idxt_dE = (999999999,)
 #                for cv, lab_pool in cv_colorpools_lab.items():
 #                    lab_arr = np.array([lab_pool[i][j] for i, j in idxt], dtype="float64")
 #                    dE = de2000.get_pal_delta_e_from_lab_arr(lab_arr)[:-1]  # last black-white dE value ignored
 #                    if dE < idxt_dE:
 #                        idxt_dE = dE
-#                highs[idxt_dE].add(rgb_palette)
+#                highs[idxt_dE].add(palette)
 #                highs_pop += 1
 #
 #                if (highs_pop % 500000) == 0:  # save some memory
@@ -487,9 +548,9 @@ if __name__ == "__main__":
 #                        prevprintc = c
 #                        nextprintc = c + random.randint(100, 500)
 #
-#                    rgb_palette = tuple(tuple(int(x) for x in colorpools_rgb[i][j]) for i, j in idxt)
+#                    palette = tuple(tuple(int(x) for x in colorpools_rgb[i][j]) for i, j in idxt)
 #                    #print()
-#                    #print(palstr(rgb_palette))
+#                    #print(palstr(palette))
 #                    #if prevmsg:
 #                    #    print(prevmsg, end="\r")
 #                    idxt_dE = (999999999,)
@@ -498,7 +559,7 @@ if __name__ == "__main__":
 #                        dE = de2000.get_pal_delta_e_from_lab_arr(lab_arr)[:-1]  # last black-white dE value ignored
 #                        if dE < idxt_dE:
 #                            idxt_dE = dE
-#                    highs[idxt_dE].add(rgb_palette)
+#                    highs[idxt_dE].add(palette)
 #                    highs_pop += 1
 #
 #                    if (highs_pop % 500000) == 0:  # save some memory

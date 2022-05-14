@@ -11,6 +11,10 @@ def delta_e_from_lab(lab1, lab2):
     delta_E = colour.difference.delta_E_CIE2000(lab1, lab2)
     return delta_E
 
+def delta_e_76_from_lab(lab1, lab2):
+    delta_E = colour.difference.delta_E_CIE1976(lab1, lab2)
+    return delta_E
+
 def get_lab_arr(rgb_arr):
     xyz_arr = colour.sRGB_to_XYZ(rgb_arr/255)
     lab_arr = colour.XYZ_to_Lab(xyz_arr)

@@ -29,12 +29,12 @@ def rgbarr_to_labarr(arr):
 def get_boundary_colors(isoluminant_level0_image_path):
     in_img_path = pathlib.Path(isoluminant_level0_image_path)
     in_img = Image.open(str(in_img_path))
-    rgb_arr = np.array(in_img).reshape((-1, 3))
-    lab_arr = rgbarr_to_labarr(rgb_arr)
+    in_rgb_arr = np.array(in_img).reshape((-1, 3))
+    in_lab_arr = rgbarr_to_labarr(in_rgb_arr)
     maxmax_dE = None
     maxmax_rgbs = np.array((), dtype="uint8")
-    idxs_gen = grouper(itertools.combinations(range(len(lab_arr)), 2), 1000000)
-    gen = grouper(itertools.combinations(lab_arr, 2), 1000000)
+    idxs_gen = grouper(itertools.combinations(range(len(in_lab_arr)), 2), 1000000)
+    gen = grouper(itertools.combinations(in_lab_arr, 2), 1000000)
     for batch in gen:
         idxs = next(idxs_gen)
         lab1_arr, lab2_arr = np.array(tuple(zip(*batch)))
@@ -43,7 +43,7 @@ def get_boundary_colors(isoluminant_level0_image_path):
         if maxmax_dE is not None and max_dE == maxmax_dE:
             max_idxs = np.where(delta_e_arr == max_dE)
             max_rgbs = np.array(
-                [np.array([rgb_arr[j] for i in m for j in idxs[i]], dtype="uint8")
+                [np.array([in_rgb_arr[j] for i in m for j in idxs[i]], dtype="uint8")
                 for m in max_idxs], dtype="uint8"
             ).reshape((len(max_idxs), 2, 3))
             maxmax_rgbs = np.concatenate((maxmax_rgbs, max_rgbs))
@@ -51,7 +51,7 @@ def get_boundary_colors(isoluminant_level0_image_path):
             maxmax_dE = max_dE
             max_idxs = np.where(delta_e_arr == max_dE)
             max_rgbs = np.array(
-                [np.array([rgb_arr[j] for i in m for j in idxs[i]], dtype="uint8")
+                [np.array([in_rgb_arr[j] for i in m for j in idxs[i]], dtype="uint8")
                 for m in max_idxs], dtype="uint8"
             ).reshape((len(max_idxs), 2, 3))
             maxmax_rgbs = max_rgbs
@@ -71,12 +71,46 @@ if __name__ == "__main__":
     root = pathlib.Path(__file__).parent.resolve()
 
     in_img_path = root.parent / "isoluminant" / "level0" / f'{graylevel:0>2X}.png'
+    isoluminant_level0_image_path = in_img_path # devtime
+    in_img_path = pathlib.Path(isoluminant_level0_image_path) # devtime
+    in_img = Image.open(str(in_img_path)) # devtime
+    in_rgb_arr = np.array(in_img).reshape((-1, 3)) # devtime
+    in_lab_arr = rgbarr_to_labarr(in_rgb_arr) # devtime
 
-    max_dE, max_rgb_arr = get_boundary_colors(in_img_path)
 
-    out_img_path = root / f'bound-{graylevel:0>2X}.png'
-    out_img = Image.fromarray(max_rgb_arr, 'RGB')
-    out_img.save(str(out_img_path))
-    dEtxtpath = root / f'bound-{graylevel:0>2X}.de.txt'
-    with dEtxtpath.open("w") as f:
-        f.write(str(max_dE))
+
+    bound_img_path = root / f'{graylevel:0>2X}-bound.png'
+    dEtxtpath = root / f'{graylevel:0>2X}-bound.de.txt'
+
+    if bound_img_path.is_file():
+        bound_img = Image.open(str(bound_img_path))
+        bound_rgb_arr = np.asarray(bound_img)
+        with dEtxtpath.open("r") as f:
+            bound_dE = float(f.read())
+    else:
+        bound_dE, bound_rgb_arr = get_boundary_colors(in_img_path)
+        bound_img = Image.fromarray(bound_rgb_arr, 'RGB')
+        bound_img.save(str(bound_img_path))
+        with dEtxtpath.open("w") as f:
+            f.write(str(bound_dE))
+
+
+    #bound_rgb_arr = np.asarray(bound_img)
+    bound_lab_arr = rgbarr_to_labarr(bound_rgb_arr)
+
+    color1_lab_arr = np.tile(bound_lab_arr[0][0], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
+    color1_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color1_lab_arr)
+
+    color2_lab_arr = np.tile(bound_lab_arr[0][1], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
+    color2_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color2_lab_arr)
+
+    # pairs1_lab_arr = np.hstack((in_lab_arr, color1_lab_arr)).reshape((len(in_lab_arr), 2, 3))
+
+    a = np.vstack((color1_dE_arr, color2_dE_arr)).transpose()
+    b = np.abs(np.diff(a))
+    c = a[np.lexsort(np.rot90(a))]
+    i = np.argmin(b)
+    level01_rgb_arr = np.insert(bound_rgb_arr, 1, in_rgb_arr[i], axis=1)
+    level01_img_path = root / f'{graylevel:0>2X}-level01.png'
+    level01_img = Image.fromarray(level01_rgb_arr, 'RGB')
+    level01_img.save(str(level01_img_path))

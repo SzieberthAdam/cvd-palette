@@ -60,6 +60,10 @@ def idxtcnt(pools, nums=None):
         v *= math.comb(len(pool),nums[i])
     return v
 
+def grouper(iterable, n):
+    args = [iter(iterable)] * n
+    yield from (tuple(x for x in t if x is not ...) for t in itertools.zip_longest(*args, fillvalue=...))
+
 def idxtgen(pools, nums=None, i=0):
     nums = nums or [1] * len(pools)
     for a in itertools.combinations(tuple(range(len(pools[0]))), nums[0]):

@@ -94,23 +94,46 @@ if __name__ == "__main__":
         with dEtxtpath.open("w") as f:
             f.write(str(bound_dE))
 
-
-    #bound_rgb_arr = np.asarray(bound_img)
-    bound_lab_arr = rgbarr_to_labarr(bound_rgb_arr)
-
-    color1_lab_arr = np.tile(bound_lab_arr[0][0], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
-    color1_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color1_lab_arr)
-
-    color2_lab_arr = np.tile(bound_lab_arr[0][1], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
-    color2_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color2_lab_arr)
-
-    # pairs1_lab_arr = np.hstack((in_lab_arr, color1_lab_arr)).reshape((len(in_lab_arr), 2, 3))
-
-    a = np.vstack((color1_dE_arr, color2_dE_arr)).transpose()
-    b = np.abs(np.diff(a))
-    c = a[np.lexsort(np.rot90(a))]
-    i = np.argmin(b)
-    level01_rgb_arr = np.insert(bound_rgb_arr, 1, in_rgb_arr[i], axis=1)
     level01_img_path = root / f'{graylevel:0>2X}-level01.png'
-    level01_img = Image.fromarray(level01_rgb_arr, 'RGB')
-    level01_img.save(str(level01_img_path))
+    if level01_img_path.is_file():
+        level01_img = Image.open(str(level01_img_path))
+        level01_rgb_arr = np.asarray(level01_img)
+    else:
+        #bound_rgb_arr = np.asarray(bound_img)
+        bound_lab_arr = rgbarr_to_labarr(bound_rgb_arr)
+
+        color1_lab_arr = np.tile(bound_lab_arr[0][0], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
+        color1_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color1_lab_arr)
+
+        color2_lab_arr = np.tile(bound_lab_arr[0][1], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
+        color2_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color2_lab_arr)
+
+        # pairs1_lab_arr = np.hstack((in_lab_arr, color1_lab_arr)).reshape((len(in_lab_arr), 2, 3))
+
+        a = np.vstack((color1_dE_arr, color2_dE_arr)).transpose()
+        b = np.abs(np.diff(a))
+        c = a[np.lexsort(np.rot90(a))]
+        i = np.argmin(b)
+        level01_rgb_arr = np.insert(bound_rgb_arr, 1, in_rgb_arr[i], axis=1)
+
+        level01_img = Image.fromarray(level01_rgb_arr, 'RGB')
+        level01_img.save(str(level01_img_path))
+
+    # X = np.zeros((100000, 100000), dtype="float32")
+
+    level02_img_path = root / f'{graylevel:0>2X}-level02.png'
+    if level02_img_path.is_file():
+        level02_img = Image.open(str(level02_img_path))
+        level02_rgb_arr = np.asarray(level02_img)
+    else:
+        level01_lab_arr = rgbarr_to_labarr(level01_rgb_arr)
+
+        # dE_arr = np.zeros((level01_lab_arr.shape[1], len(in_lab_arr)), dtype="float64")
+        # for i in range(level01_lab_arr.shape[1]):
+        #     color_lab_arr = np.tile(level01_lab_arr[0][i], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
+        #     dE_arr[i] = color_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color_lab_arr)
+
+        dE_arr = np.zeros((len(in_lab_arr), level01_lab_arr.shape[1]), dtype="float64")
+        for i in range(level01_lab_arr.shape[1]):
+            color_lab_arr = np.tile(level01_lab_arr[0][i], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
+            dE_arr[:, i] = color_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color_lab_arr)

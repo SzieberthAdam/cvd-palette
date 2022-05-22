@@ -103,9 +103,10 @@ if __name__ == "__main__":
 
     value = 999
 
-    while source_rgb_arr.shape[1] < 32:
+    #while source_rgb_arr.shape[1] < 32:
+    while True:
         startlevel += 1
-        target_img_path = root / f'{graylevel:0>2X}-f{startlevel:0>2}.png'
+        target_img_path = root / f'{graylevel:0>2X}-h{startlevel:0>2}.png'
         if target_img_path.is_file():
             target_img = Image.open(str(target_img_path))
             target_rgb_arr = np.asarray(target_img)
@@ -113,18 +114,20 @@ if __name__ == "__main__":
             source_lab_arr = rgbarr_to_labarr(source_rgb_arr)
             target_rgb_arr = np.copy(source_lab_arr)
 
-            dE_arr = np.zeros((len(in_lab_arr), source_lab_arr.shape[1]), dtype="float64")
-            for i in range(source_lab_arr.shape[1]):
+            dE_arr = np.zeros((len(in_lab_arr), source_rgb_arr.shape[1]), dtype="float64")
+            for i in range(source_rgb_arr.shape[1]):
                 color_lab_arr = np.tile(source_lab_arr[0][i], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
                 dE_arr[:, i] = color_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color_lab_arr)
 
             filtr = np.all(dEbound <= dE_arr, axis=1)
             if not np.any(filtr):
                 break
-            values = np.mean(dE_arr, axis=1)**2 - np.std(dE_arr, axis=1)**2
+            values = np.mean(dE_arr, axis=1)**2 - source_rgb_arr.shape[1] * np.std(dE_arr, axis=1)**2
+            values = np.min(dE_arr, axis=1)
             for pick_i in reversed(np.argsort(values)):
                 if not filtr[pick_i]:
                     continue
+                print(values[pick_i], dE_arr[pick_i])
                 target_rgb_arr = np.append(source_rgb_arr, in_rgb_arr[pick_i].reshape((1, 1, 3)), axis=1)
                 target_rgb_arr_shape = target_rgb_arr.shape
                 target_hsv_arr = colour.RGB_to_HSV(target_rgb_arr / 255)[0]

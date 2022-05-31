@@ -1,0 +1,1 @@
+magick compare.png gray.szieberth.png -hald-clut compare-gray-szieberth.png

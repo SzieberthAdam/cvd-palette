@@ -1,0 +1,1 @@
+magick compare.png gray.gimp2-10.png -hald-clut compare-gray-gimp2-10.png

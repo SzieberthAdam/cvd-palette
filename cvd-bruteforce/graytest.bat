@@ -1,0 +1,1 @@
+magick cvd4.png ../haldclut/gray/gray.szieberth.png -hald-clut cvd4gray.png

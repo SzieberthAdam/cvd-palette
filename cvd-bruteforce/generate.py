@@ -118,7 +118,9 @@ if __name__ == "__main__":
     root = pathlib.Path(__file__).parent.resolve()
 
     img_path = root / f'cvd{cvd_n}.png'
+    img_bak_path = root / f'cvd{cvd_n}.bak.png'
     dE_path = root / f'cvd{cvd_n}.txt'
+    dE_bak_path = root / f'cvd{cvd_n}.bak.txt'
 
     haldclutdir = root.parent / "haldclut"
 
@@ -220,9 +222,13 @@ if __name__ == "__main__":
             best_sorted_dE = batch_best_sorted_dE
             best_pal = batch_best_pal
             img = Image.fromarray(best_pal, 'RGB')
+            if img_path.is_file():
+                img_path.rename(img_bak_path)
             img.save(img_path)
             del img
             print("(I)", end="", flush=True)
+        if dE_path.is_file():
+            dE_path.rename(dE_bak_path)
         with dE_path.open("w") as f:
             f.write(dEstr(best_dE, combs, batchnr))
         print("(B)", end="", flush=True)
@@ -243,6 +249,8 @@ if __name__ == "__main__":
         del batch_best_pal
         gc.collect()
     else:
+        if dE_path.is_file():
+            dE_path.rename(dE_bak_path)
         with dE_path.open("w") as f:
             f.write(dEstr(best_dE, combs))
         print("END", flush=True)

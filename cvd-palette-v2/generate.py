@@ -143,6 +143,9 @@ if __name__ == "__main__":
     print(f'Palette gray levels: {", ".join(graypalstrs)}')
 
     prev_color_arrs = [None] * len(graypal)
+    past_top_level = [False] * len(graypal)
+    past_top_level[0] = True # black
+    past_top_level[-1] = True # white
 
     level = start_level
 
@@ -195,10 +198,11 @@ if __name__ == "__main__":
                             arr = arr1
                 else:
                     arr = prev_color_arrs[i]
+                    past_top_level[i] = True
             assert arr.shape[0]
             color_arrs[i] = arr
 
-        if all([np.all(color_arrs[i] == prev_color_arrs[i]) for i in range(len(graypal))]):
+        if all(past_top_level):
             break
 
         iteration_count = int(np.prod([a.shape[0] for a in color_arrs], dtype="uint64"))

@@ -134,11 +134,6 @@ if __name__ == "__main__":
 
     source_rgb_arr = bound_rgb_arr
 
-#   argarr = np_set_difference_argarr(in_rgb_arr, source_rgb_arr)
-#   in_rgb_arr = in_rgb_arr[argarr]
-#   in_sortby_arr = in_sortby_arr[argarr]
-#   in_lab_arr = in_lab_arr[argarr]
-
     level = 1
     target_rgb_arr = np.zeros((0, 3))
     colors = source_rgb_arr.shape[0]
@@ -148,10 +143,6 @@ if __name__ == "__main__":
         target_img = Image.open(str(target_img_path))
         target_rgb_arr = np.asarray(target_img).reshape((-1, 3))
         source_rgb_arr = target_rgb_arr
-#       argarr = np_set_difference_argarr(in_rgb_arr, source_rgb_arr)
-#       in_rgb_arr = in_rgb_arr[argarr]
-#       in_sortby_arr = in_sortby_arr[argarr]
-#       in_lab_arr = in_lab_arr[argarr]
     else:
         while source_rgb_arr.shape[0] < initcolors:
             source_lab_arr = rgbarr_to_labarr(source_rgb_arr)
@@ -176,15 +167,9 @@ if __name__ == "__main__":
                 _, target_rgb_arr, _ = sort_rgb(target_rgb_arr.reshape((-1, 3)))
                 break
             source_rgb_arr = target_rgb_arr
-#           argarr = np_set_difference_argarr(in_rgb_arr, source_rgb_arr)
-#           in_rgb_arr = in_rgb_arr[argarr]
-#           in_sortby_arr = in_sortby_arr[argarr]
-#           in_lab_arr = in_lab_arr[argarr]
 
         target_img = Image.fromarray(target_rgb_arr.reshape((1, -1, 3)), 'RGB')
         target_img.save(str(target_img_path))
-
-
 
     while target_rgb_arr.shape[0] < in_rgb_arr.shape[0]:
         level += 1
@@ -195,10 +180,6 @@ if __name__ == "__main__":
             assert target_rgb_arr.shape[0] == 1  # assert one row, I hope there will never be more
             target_rgb_arr = target_rgb_arr.reshape((-1, 3))
             source_rgb_arr = target_rgb_arr
-#           argarr = np_set_difference_argarr(in_rgb_arr, source_rgb_arr)
-#           in_rgb_arr = in_rgb_arr[argarr]
-#           in_sortby_arr = in_sortby_arr[argarr]
-#           in_lab_arr = in_lab_arr[argarr]
         else:
             print(f'=== LEVEL {level} ===')
             _, source_rgb_arr, source_sortby_arr = sort_rgb(source_rgb_arr)
@@ -221,65 +202,6 @@ if __name__ == "__main__":
                     range0_rgb_arr = np.vstack((in_rgb_arr[c0_idx+1:], in_rgb_arr[:c1_idx]))
                     range0_lab_arr = np.vstack((in_lab_arr[c0_idx+1:], in_lab_arr[:c1_idx]))
                 n = range0_rgb_arr.shape[0]
-
-#               hue_range0 = source_sortby_arr[c0], source_sortby_arr[c1]
-#               if hue_range0[0] <= hue_range0[1]:
-#                   ob = False
-#                   ii = np.where(np.logical_and(hue_range0[0] <= in_hue_arr, in_hue_arr <= hue_range0[1]))[0]
-#                   n = ii.shape[0]
-#                   hue_hue_arr = in_hue_arr[ii]
-#                   hue_sorted_ii = ii[np.argsort(hue_hue_arr)]
-#               else:
-#                   ob = True
-#                   #ii = np.where(np.logical_or(hue_range0[0] <= in_hue_arr, in_hue_arr <= hue_range0[1]))[0]
-#                   ii0 = np.where(hue_range0[0] <= in_hue_arr)[0]
-#                   ii1 = np.where(in_hue_arr <= hue_range0[1])[0]
-#                   ii = np.hstack((ii0, ii1))
-#                   n = ii0.shape[0] + ii1.shape[0]
-#                   hue_hue_arr0 = in_hue_arr[ii0]
-#                   hue_sorted_ii0 = ii0[np.argsort(hue_hue_arr0)]
-#                   hue_hue_arr1 = in_hue_arr[ii1]
-#                   hue_sorted_ii1 = ii1[np.argsort(hue_hue_arr1)]
-#                   hue_hue_arr = np.hstack((hue_hue_arr0, hue_hue_arr1))
-#                   hue_sorted_ii = np.hstack((hue_sorted_ii0, hue_sorted_ii1))
-#               jj = [None] * 2
-#               mm = [None] * 2
-#               if n == 0:
-#                   continue
-#               elif n == 1:
-#                   jj[0] = hue_sorted_ii[:1]
-#                   jj[1] = None
-#               elif n in {2, 3}:
-#                   jj[0] = hue_sorted_ii[:1]
-#                   jj[1] = hue_sorted_ii[-1:]
-#               elif n in {4, 5}:
-#                   jj[0] = hue_sorted_ii[:2]
-#                   jj[1] = hue_sorted_ii[-2:]
-#               else:
-#                   jj_slice_size = n//6
-#                   jj[0] = hue_sorted_ii[jj_slice_size:2*jj_slice_size]
-#                   jj[1] = hue_sorted_ii[-2*jj_slice_size:-jj_slice_size]
-
-                #if ob:
-                #    for i in range(2):
-                #        if jj[i] is None: continue
-                #        kk0 = jj[i][np.where(hue_range0[0] <= in_hue_arr[jj[i]])[0]]
-                #        kk1 = jj[i][np.where(in_hue_arr[jj[i]] <= hue_range0[1])[0]]
-                #        if kk0.shape[0] and kk1.shape[0]:
-                #            hue_range1[i] = np.min(in_hue_arr[kk0]), np.max(in_hue_arr[kk1])
-                #            mm[i] = np.where(np.logical_or(hue_range1[i][0] <= in_hue_arr, in_hue_arr <= hue_range1[i][1]))[0]
-                #        elif not kk1.shape[0]:
-                #            hue_range1[i] = np.min(in_hue_arr[kk0]), np.max(in_hue_arr[kk0])
-                #            mm[i] = np.where(np.logical_and(hue_range1[i][0] <= in_hue_arr, in_hue_arr <= hue_range1[i][1]))[0]
-                #        else:
-                #            hue_range1[i] = np.min(in_hue_arr[kk1]), np.max(in_hue_arr[kk1])
-                #            mm[i] = np.where(np.logical_and(hue_range1[i][0] <= in_hue_arr, in_hue_arr <= hue_range1[i][1]))[0]
-                #else:
-                #    for i in range(2):
-                #        if jj[i] is None: continue
-                #        hue_range1[i] = np.min(in_hue_arr[jj[i]]), np.max(in_hue_arr[jj[i]])
-                #        mm[i] = np.where(np.logical_and(hue_range1[i][0] <= in_hue_arr, in_hue_arr <= hue_range1[i][1]))[0]
-
 
                 range1_rgb_arrs = [None] * 2
                 range1_lab_arrs = [None] * 2
@@ -307,60 +229,6 @@ if __name__ == "__main__":
                     range1_lab_arrs[0] = range0_lab_arr[r:2*r]
                     range1_lab_arrs[1] = range0_lab_arr[-2*r:-r]
 
-#                hue_range1 = [None] * 2
-#                for i in range(2):
-#                    if jj[i] is None: continue
-#                    hue_range1[i] = np.min(in_hue_arr[jj[i]]), np.max(in_hue_arr[jj[i]])
-#
-#
-#
-#                mm = jj
-
-#               #print(c+1, hue_range0, ii.shape[0], flush=True)
-#               hue_hue_arr = [None] * 2
-#               hue_rgb_arr = [None] * 2
-#               hue_lab_arr = [None] * 2
-#               dE_arr = [None] * 2
-#               for i in range(2):
-#                   if jj[i] is None: continue
-#                   n = mm[i].shape[0]
-#                   #print(c+1, i, hue_range1[i], n, flush=True)
-#                   hue_hue_arr[i] = in_hue_arr[mm[i]]
-#                   hue_rgb_arr[i] = in_rgb_arr[mm[i]]
-#                   hue_lab_arr[i] = in_lab_arr[mm[i]]
-#                   dE_arr[i] = np.zeros((len(hue_lab_arr[i])), dtype="float64")
-#               for i in range(2):
-#                   if jj[i] is None: continue
-#                   #print(source_rgb_arr[0][(c + i) % source_rgb_arr.shape[1]], source_sortby_arr[(c + i) % source_sortby_arr.shape[0]], round(source_sortby_arr[(c + i) % source_sortby_arr.shape[0]] * 360))
-#                   j = (c + i) % source_lab_arr.shape[1]
-#                   color_lab_arr = np.tile(source_lab_arr[0][j], len(hue_lab_arr[i])).reshape((len(hue_lab_arr[i]), 3))
-#                   dE_arr[i] = color_dE_arr = de2000.delta_e_from_lab(hue_lab_arr[i], color_lab_arr)
-#               #raise Exception
-#               value = [None] * 2
-#               main_rgb = [None] * 2
-#               pick_rgb = [None] * 2
-#               for i in range(2):
-#                   if jj[i] is None: continue
-#                   for ii in np.argsort(dE_arr[i]):
-#                       pick_rgb[i] = hue_rgb_arr[i][ii]
-#                       t_pick_rgb = tuple(pick_rgb[i])
-#                       if t_pick_rgb in new_rgbs:
-#                           #print(t_pick_rgb, flush=True)
-#                           pick_rgb[i] = None
-#                           continue
-#                       else:
-#                           new_rgbs.add(t_pick_rgb)
-#                           j = (c + i) % source_lab_arr.shape[1]
-#                           main_rgb[i] = source_rgb_arr[0][j]
-#                           value[i] = dE_arr[i][ii]
-#                           break
-#               #raise Exception
-#               for i in range(2):
-#                   if pick_rgb[i] is None: continue
-#                   main_i = np.where(np.all(target_rgb_arr.reshape((-1, 3)) == main_rgb[i], axis=1))[0][0]
-#                   pick_i = main_i + (1 - i)
-#                   target_rgb_arr = np.insert(target_rgb_arr, pick_i, pick_rgb[i], axis=1)
-
                 cc_rgbs = (c0_rgb, c1_rgb)
                 cc_labs = (c0_lab, c1_lab)
                 for cci in range(2):
@@ -385,14 +253,5 @@ if __name__ == "__main__":
             target_img.save(str(target_img_path))
 
             source_rgb_arr = target_rgb_arr
-
-#            # https://stackoverflow.com/a/40056251/2334951
-#            # out = [rgb for rgb in in_rgb_arr if rgb not in source_rgb_arr[0]]
-#            A, B = in_rgb_arr, source_rgb_arr[0]
-#            dims = np.maximum(B.max(0),A.max(0), dtype="uint16")+1
-#            keep = ~np.in1d(np.ravel_multi_index(A.T,dims),np.ravel_multi_index(B.T,dims))
-#            #out = A[keep]
-#            in_rgb_arr = in_rgb_arr[keep]
-#            in_lab_arr = in_lab_arr[keep]
 
             #input("PRESS ENTER TO CONTINUE")

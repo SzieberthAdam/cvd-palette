@@ -80,13 +80,13 @@ def get_pal_values(pal_, cluts):
 
 
 def dEstr(dE, combs, batchnr=None):
-    vision_sort = tuple(np.lexsort(dE))
+    ldE0 = np.min(dE, axis=0)
+    vision_sort = tuple(np.argsort(ldE0))
     longest_clutname_len = max([len(s) for s in clutnames])
     _fs = f'{{0:<{longest_clutname_len}}}'
     rowheaders = [_fs.format(clutnames[i]) for i in vision_sort]
     colheaders = [f'{"lowest":^8}'] + [f'{str(t):^8}' for t in combs]
     tdE = np.transpose(dE)
-    ldE0 = np.min(dE, axis=0)
     ldE = [ldE0[i] for i in vision_sort]
     dEvals = [[f'{ldE0[i]:>8.4f}'] + [f'{v:>8.4f}' for v in tdE[i]] for i in vision_sort]
     if batchnr is None:
@@ -109,11 +109,11 @@ if __name__ == "__main__":
 
     try:
         cvd_n = int(sys.argv[1])
-        start_level = int(sys.argv[2])
+        level1colors = int(sys.argv[2])
         n_neigh = int(sys.argv[3])
         n_clde = int(sys.argv[4])
     except (IndexError, ValueError):
-        print("Usage: python generate.py <palette size> <start pyramid level> <next-level-neighbour-colors> <next-level-closest-de-colors>")
+        print("Usage: python generate.py <palette size> <pyramid level1 colors> <next-level-neighbour-colors> <next-level-closest-de-colors>")
         sys.exit(1)
 
     np.seterr(all='raise')
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     past_top_level[0] = True # black
     past_top_level[-1] = True # white
 
-    level = start_level
+    level = 1
 
     while True:
 
@@ -161,11 +161,11 @@ if __name__ == "__main__":
             if graylvl in {0, 255}:
                 arr = np.array([[graylvl, graylvl, graylvl]], dtype="uint8")
             else:
-                isoluminantimgpath = isoluminantdir / f'{graylvl:0>2x}' / f'{graylvl:0>2x}-0016-{level:0>2}.png'
+                isoluminantimgpath = isoluminantdir / f'{graylvl:0>2x}' / f'{graylvl:0>2x}-{level1colors:0>4}-{level:0>2}.png'
                 if isoluminantimgpath.is_file():
-                    print(isoluminantimgpath)
+                    # print(isoluminantimgpath)
                     img = Image.open(str(isoluminantimgpath))
-                    if level == start_level:
+                    if level == 1:
                         arr = np.array(img).reshape((-1, 3))
                     else:
                         color_rgb_arr = best_pal[0][i]
@@ -174,9 +174,29 @@ if __name__ == "__main__":
                         arr0 = np.array(img).reshape((-1, 3))
                         arr0_color_i = np.where(np.all(arr0 == color_rgb_arr, axis=1))[0][0]
 
-                        arr1 = arr0[max(0, arr0_color_i-(n_neigh//2)):min(arr0.shape[0], arr0_color_i+(n_neigh//2)+1)]
+                        exp_arr1_size = min(n_neigh, arr0.shape[0])
 
-                        if n_clde:
+                        if exp_arr1_size == arr0.shape[0]:
+                            arr1_i0 = arr1_i1 = 0
+                            arr1_j0 = arr1_j1 = arr0.shape[0]
+                            arr1 = arr0
+                        else:
+                            arr1_i0 = arr0_color_i-(n_neigh//2)
+                            arr1_j0 = arr1_i0 + n_neigh
+                            arr1_i1 = max(0, arr1_i0)
+                            arr1_j1 = min(arr0.shape[0], arr1_j0)
+                            arr1 = arr0[arr1_i1: arr1_j1]
+                            if arr1_i0 < 0:
+                                arr1_2 = arr0[arr1_i0:]
+                                arr1 = np.vstack((arr1, arr1_2))
+                            elif arr0.shape[0] < arr1_j0:
+                                arr1_2 = arr0[:arr1_j0-arr0.shape[0]]
+                                arr1 = np.vstack((arr1_2, arr1))
+                        assert arr1.shape[0] == exp_arr1_size
+
+                        exp_arr3_size = min(n_clde, arr0.shape[0] - exp_arr1_size)
+
+                        if exp_arr3_size:
                             # https://stackoverflow.com/a/40056251/2334951
                             # arr2 = [rgb for rgb in arr0 if rgb not in arr1]
                             A, B = arr0, arr1
@@ -190,6 +210,7 @@ if __name__ == "__main__":
                             arr2_dE = de2000.delta_e_from_lab(arr2_lab, color_arr2_lab)
                             arr3_ii = np.argsort(arr2_dE)[:n_clde]
                             arr3 = arr2[arr3_ii]
+                            assert arr3.shape[0] == exp_arr3_size
 
                             arr4 = np.vstack((arr1, arr3))
                             #raise Exception
@@ -206,7 +227,7 @@ if __name__ == "__main__":
             break
 
         iteration_count = int(np.prod([a.shape[0] for a in color_arrs], dtype="uint64"))
-        print(f'Iterations: {iteration_count}')
+        print(f'Iterations: {iteration_count} {[a.shape[0] for a in color_arrs]!r}')
 
         idxtgen_args = [range(len(color_arrs[p])) for p in range(len(color_arrs))]
         idxtgen = itertools.product(*idxtgen_args)
@@ -244,7 +265,8 @@ if __name__ == "__main__":
                     print("L", end="", flush=True)
                     dE_arr[:,p][:,v] = this_dE_arr = de2000.delta_e_from_lab(lab1, lab2)
                     print("D", end="", flush=True)
-            sort1_dE_arr = np.sort(np.min(dE_arr, axis=1))
+            mdE_arr = np.min(dE_arr, axis=1)
+            sort1_dE_arr = np.sort(mdE_arr)
             sort2_dE_arr = np.sort(dE_arr.reshape((dE_arr.shape[0], dE_arr.shape[1]* dE_arr.shape[2])), axis=1)
             sort3_dE_arr = np.hstack((sort1_dE_arr, sort2_dE_arr))
             sort_ii = np.flip(np.lexsort(np.rot90(sort3_dE_arr)))

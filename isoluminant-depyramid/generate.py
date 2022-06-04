@@ -1,4 +1,5 @@
 import itertools
+import math
 import pathlib
 import sys
 
@@ -15,8 +16,6 @@ sys.path.remove(str(_importdir))
 import colour
 from PIL import Image
 import numpy as np
-
-dEbound = 10
 
 def grouper(iterable, n):
     args = [iter(iterable)] * n
@@ -37,10 +36,15 @@ def get_boundary_colors(isoluminant_level0_image_path):
     maxmax_rgbs = np.array((), dtype="uint8")
     idxs_gen = grouper(itertools.combinations(range(len(in_lab_arr)), 2), 1000000)
     gen = grouper(itertools.combinations(in_lab_arr, 2), 1000000)
-    for batch in gen:
+    iteration_count = math.comb(in_lab_arr.shape[0], 2)
+    print(f'Iterations: {iteration_count}')
+    for batchnr, batch in enumerate(gen, 1):
+        print(f'B{batchnr}:', end='', flush=True)
         idxs = next(idxs_gen)
         lab1_arr, lab2_arr = np.array(tuple(zip(*batch)))
+        print("L", end='', flush=True)
         delta_e_arr = de2000.delta_e_from_lab(lab1_arr, lab2_arr)
+        print("D", end='', flush=True)
         max_dE = np.max(delta_e_arr)
         if maxmax_dE is not None and max_dE == maxmax_dE:
             max_idxs = np.where(delta_e_arr == max_dE)
@@ -57,7 +61,18 @@ def get_boundary_colors(isoluminant_level0_image_path):
                 for m in max_idxs], dtype="uint8"
             ).reshape((len(max_idxs), 2, 3))
             maxmax_rgbs = max_rgbs
+        print(".", flush=True)
     return maxmax_dE, maxmax_rgbs
+
+
+def sort_rgb_by_abl(rgb_arr):
+    lab_arr = rgbarr_to_labarr(rgb_arr)
+    sort_by_arr = lab_arr[:, [1, 2, 0]]
+    del lab_arr
+    sort_idx_arr = np.lexsort(sort_by_arr.T[::-1])
+    out_rgb_arr = rgb_arr[sort_idx_arr]
+    out_sort_by_arr = sort_by_arr[sort_idx_arr]
+    return sort_idx_arr, out_rgb_arr, out_sort_by_arr
 
 
 def sort_rgb_by_hsv(rgb_arr):
@@ -78,7 +93,43 @@ def sort_rgb_by_hsv(rgb_arr):
     return sort_idx_arr, out_rgb_arr, out_sort_by_arr
 
 
-sort_rgb = sort_rgb_by_hsv
+def sort_rgb_by_shv(rgb_arr):
+    hsv_arr = colour.RGB_to_HSV(rgb_arr / 255)
+    sort_by_arr = hsv_arr[:, [1, 0, 2]]
+    del hsv_arr
+    sort_idx_arr = np.lexsort(sort_by_arr.T[::-1])
+    out_rgb_arr = rgb_arr[sort_idx_arr]
+    out_sort_by_arr = sort_by_arr[sort_idx_arr]
+    return sort_idx_arr, out_rgb_arr, out_sort_by_arr
+
+def sort_rgb_by_s3hsv(rgb_arr):
+    hsv_arr = colour.RGB_to_HSV(rgb_arr / 255)
+    s3_arr = np.ceil(hsv_arr[:,1] * 4 + 0.0000000000000001).reshape((-1, 1))  # 4 clasters
+    sort_by_arr = np.hstack((s3_arr, hsv_arr))
+    del hsv_arr, s3_arr
+    sort_idx_arr = np.lexsort(sort_by_arr.T[::-1])
+    out_rgb_arr = rgb_arr[sort_idx_arr]
+    out_sort_by_arr = sort_by_arr[sort_idx_arr]
+    return sort_idx_arr, out_rgb_arr, out_sort_by_arr
+
+def sort_rgb_by_s3hsv2(rgb_arr):
+    hsv_arr = colour.RGB_to_HSV(rgb_arr / 255)
+    s3_arr = np.ceil(hsv_arr[:,1] * 4 + 0.0000000000000001).reshape((-1, 1))  # 4 clasters
+    sort_by_arr = np.hstack((s3_arr, hsv_arr))
+    del hsv_arr, s3_arr
+    ii = np.where(sort_by_arr[:,0] % 2)[0]
+    np.put(sort_by_arr[:,1], ii, -sort_by_arr[:,1][ii])
+    sort_idx_arr = np.lexsort(sort_by_arr.T[::-1])
+    out_rgb_arr = rgb_arr[sort_idx_arr]
+    out_sort_by_arr = sort_by_arr[sort_idx_arr]
+    return sort_idx_arr, out_rgb_arr, out_sort_by_arr
+
+
+#sort_rgb = sort_rgb_by_hsv
+#sort_rgb = sort_rgb_by_abl
+#sort_rgb = sort_rgb_by_shv
+#sort_rgb = sort_rgb_by_s3hsv
+sort_rgb = sort_rgb_by_s3hsv2
 
 
 def np_set_difference_argarr(A, B):
@@ -109,8 +160,10 @@ if __name__ == "__main__":
     in_img_path = pathlib.Path(isoluminant_level0_image_path)
     in_img = Image.open(str(in_img_path))
     in_rgb_arr0 = np.array(in_img).reshape((-1, 3))
+    # raise Exception   # to test sort functions
     _, in_rgb_arr, in_sortby_arr = sort_rgb(in_rgb_arr0)
     in_lab_arr = rgbarr_to_labarr(in_rgb_arr)
+    # raise Exception   # to test sort functions
 
     bound_img_path = root / f'{graylevel:0>2X}' / f'{graylevel:0>2X}-0000-02.png'
     dEtxtpath = root / f'{graylevel:0>2X}' / f'{graylevel:0>2X}-0000-02.txt'
@@ -153,15 +206,10 @@ if __name__ == "__main__":
                 color_lab_arr = np.tile(source_lab_arr[i], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
                 dE_arr[:, i] = color_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color_lab_arr)
 
-            filtr = np.all(dEbound <= dE_arr, axis=1)
-            if not np.any(filtr):
-                break
             values = np.min(dE_arr, axis=1)
             for pick_i in reversed(np.argsort(values)):
-                if not filtr[pick_i]:
-                    continue
                 pick_rgb = in_rgb_arr[pick_i]
-                print(pick_rgb, values[pick_i])
+                print(source_rgb_arr.shape[0] + 1, pick_rgb, values[pick_i])
                 #print(pick_rgb, values[pick_i], dE_arr[pick_i])
                 target_rgb_arr = np.append(source_rgb_arr, pick_rgb.reshape((1,3)), axis=0)
                 _, target_rgb_arr, _ = sort_rgb(target_rgb_arr.reshape((-1, 3)))

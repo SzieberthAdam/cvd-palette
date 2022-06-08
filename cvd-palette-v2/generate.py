@@ -149,11 +149,30 @@ if __name__ == "__main__":
 
     level = 1
 
+    best_pal = None
+    best_dE = None
+    best_sorted_dE = None
+
     while True:
 
-        level_img_path = root / f'cvd{cvd_n}-{level:0>2}.png'
         level_dE_path = root / f'cvd{cvd_n}-{level:0>2}.txt'
+        level_img_path = root / f'cvd{cvd_n}-{level:0>2}.png'
 
+
+        if level_dE_path.is_file() and level_img_path.is_file():
+            img = Image.open(str(img_path))
+            best_pal = np.array(img).reshape((1, -1, 3))
+            best_dE, best_sorted_dE = get_pal_values(best_pal, cluts)
+            del img
+            with dE_path.open("r") as f:
+                firstline = f.readline().strip()
+            if firstline.isdecimal():
+                prevbatchnr = int(firstline)
+            else:
+                prevbatchnr = None
+                continue
+        else:
+            prevbatchnr = None
 
         color_arrs = [None] * len(graypal)
         isoluminantdir = root.parent / "isoluminant-depyramid"
@@ -232,11 +251,6 @@ if __name__ == "__main__":
         idxtgen_args = [range(len(color_arrs[p])) for p in range(len(color_arrs))]
         idxtgen = itertools.product(*idxtgen_args)
         groupergen = grouper(idxtgen, batchsize)
-
-        prevbatchnr = None
-        best_pal = None
-        best_dE = None
-        best_sorted_dE = None
 
         for batchnr, batch in enumerate(groupergen, 1):
             if prevbatchnr and batchnr <= prevbatchnr:

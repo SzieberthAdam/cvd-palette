@@ -165,16 +165,16 @@ if __name__ == "__main__":
     groupergen = grouper(idxtgen, batchsize)
 
     if dE_path.is_file() and img_path.is_file():
+        img = Image.open(str(img_path))
+        best_pal = np.array(img).reshape((1, -1, 3))
+        best_dE, best_sorted_dE = get_pal_values(best_pal, cluts)
+        del img
         with dE_path.open("r") as f:
             firstline = f.readline().strip()
         if firstline.isdecimal():
             prevbatchnr = int(firstline)
         else:
             raise Exception
-        img = Image.open(str(img_path))
-        best_pal = np.array(img).reshape((1, -1, 3))
-        best_dE, best_sorted_dE = get_pal_values(best_pal, cluts)
-        del img
     else:
         prevbatchnr = None
         best_pal = None

@@ -179,7 +179,7 @@ if __name__ == "__main__":
 
         print(f'=== {graylevel:0>2X} ===')
 
-        in_img_path = root.parent / "isoluminant" / "szieberth" / f'{graylevel:0>2X}.png'
+        in_img_path = root.parent / "isoluminant" / "szieberth" / f'{graylevel:0>2x}.png'
         isoluminant_image_path = in_img_path
         in_img_path = pathlib.Path(isoluminant_image_path)
         in_img = Image.open(str(in_img_path))
@@ -189,12 +189,12 @@ if __name__ == "__main__":
         in_lab_arr = rgbarr_to_labarr(in_rgb_arr)
         # raise Exception   # to test sort functions
 
-        graylevel_dir = root / f'{graylevel:0>2X}'
+        graylevel_dir = root / f'{graylevel:0>2x}'
         if not graylevel_dir.is_dir():
             graylevel_dir.mkdir(parents=True, exist_ok=True)
 
-        bound_img_path = graylevel_dir / f'{graylevel:0>2X}-0002-01.png'
-        dEtxtpath = graylevel_dir / f'{graylevel:0>2X}-0002-01.txt'
+        bound_img_path = graylevel_dir / f'{graylevel:0>2x}-0002-01.png'
+        dEtxtpath = graylevel_dir / f'{graylevel:0>2x}-0002-01.txt'
 
         if bound_img_path.is_file():
             bound_img = Image.open(str(bound_img_path))
@@ -224,7 +224,7 @@ if __name__ == "__main__":
         target_rgb_arr = np.zeros((0, 3))
         colors = source_rgb_arr.shape[0]
 
-        target_img_path = graylevel_dir / f'{graylevel:0>2X}-{initcolors:0>4}-{level:0>2}.png'
+        target_img_path = graylevel_dir / f'{graylevel:0>2x}-{initcolors:0>4}-{level:0>2}.png'
         if target_img_path.is_file():
             target_img = Image.open(str(target_img_path))
             target_rgb_arr = np.asarray(target_img).reshape((-1, 3))
@@ -254,7 +254,7 @@ if __name__ == "__main__":
 
         while target_rgb_arr.shape[0] < in_rgb_arr.shape[0]:
             level += 1
-            target_img_path = graylevel_dir / f'{graylevel:0>2X}-{initcolors:0>4}-{level:0>2}.png'
+            target_img_path = graylevel_dir / f'{graylevel:0>2x}-{initcolors:0>4}-{level:0>2}.png'
             if target_img_path.is_file():
                 target_img = Image.open(str(target_img_path))
                 target_rgb_arr = np.asarray(target_img)

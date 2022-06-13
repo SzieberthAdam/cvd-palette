@@ -143,7 +143,7 @@ if __name__ == "__main__":
 
 
     color_arrs = [None] * len(graypal)
-    isoluminantdir = root.parent / "isoluminant" / "level0"
+    isoluminantdir = root.parent / "isoluminant" / "szieberth"
     for i, graylvl in enumerate(graypal):
         if graylvl in {0, 255}:
             arr = np.array([[graylvl, graylvl, graylvl]], dtype="uint8")
@@ -235,7 +235,6 @@ if __name__ == "__main__":
         print(flush=True)
         del batch
         del b
-        del combs
         del dE_arr
         del clut_
         del this_color_arrs

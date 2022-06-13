@@ -204,7 +204,7 @@ if __name__ == "__main__":
             if graylvl in {0, 255}:
                 arr = np.array([[graylvl, graylvl, graylvl]], dtype="uint8")
             else:
-                isoluminantimgpath = isoluminantdir / "level0" / f'{graylvl:0>2x}.png'
+                isoluminantimgpath = isoluminantdir / "szieberth" / f'{graylvl:0>2x}.png'
                 assert isoluminantimgpath.is_file()
                 # print(isoluminantimgpath)
                 img = Image.open(str(isoluminantimgpath))

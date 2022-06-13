@@ -199,11 +199,13 @@ if __name__ == "__main__":
             level_img_path = work / f'{cvd_n:0>2}-{level1colors:0>5}-{n_neigh:0>5}-{n_clde:0>5}-{palnr:0>4}-{level:0>2}.png'
 
 
-            if level_dE_path.is_file() and level_img_path.is_file():
+            if level_img_path.is_file():
                 img = Image.open(str(level_img_path))
                 best_pal = np.array(img).reshape((1, -1, 3))
                 best_dE, best_sorted_dE = get_pal_values(best_pal, cluts)
                 del img
+
+            if level_dE_path.is_file():
                 with level_dE_path.open("r") as f:
                     firstline = f.readline().strip()
                 if firstline.isdecimal():
@@ -327,24 +329,20 @@ if __name__ == "__main__":
                 sort2_dE_arr = np.sort(dE_arr.reshape((dE_arr.shape[0], dE_arr.shape[1]* dE_arr.shape[2])), axis=1)
                 sort3_dE_arr = np.hstack((sort1_dE_arr, sort2_dE_arr))
                 sort_ii = np.flip(np.lexsort(np.rot90(sort3_dE_arr)))
-                for ii in sort_ii:
-                    pal_rgb_arr = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[ii])]).reshape((1, -1, 3))
-                    pal_lab_arr = np.asarray([tuple(color_lab_arrs[c][i]) for c, i in enumerate(b[ii])]).reshape((1, -1, 3))
-                    for nci in range(not_close_to_lab_arr.shape[0]):
-                        nci_lab_arr = not_close_to_lab_arr[nci].reshape((1, -1, 3))
-                        nci_dE_arr = de2000.delta_e_from_lab(pal_lab_arr, nci_lab_arr)[0]
-                        nci_max_dE = np.max(nci_dE_arr)
-                        if nci_max_dE < min_nci_dE:
-                            #raise Exception
+                if not_close_to_lab_arr.shape[0]:
+                    for ii in sort_ii:
+                        pal_rgb_arr = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[ii])]).reshape((1, -1, 3))
+                        pal_lab_arr = np.asarray([tuple(color_lab_arrs[c][i]) for c, i in enumerate(b[ii])]).reshape((1, -1, 3))
+                        pal_nci_dE_arr = de2000.delta_e_from_lab(pal_lab_arr, not_close_to_lab_arr)
+                        pal_nci_dE_max_arr = np.max(pal_nci_dE_arr, axis=1)
+                        pal_nci_dE = np.min(pal_nci_dE_max_arr)
+                        if min_nci_dE <= pal_nci_dE:
                             break
                     else:
-                        break  # empty not_close_to_lab_arr
-                    if min_nci_dE <= nci_max_dE:
-                        #raise Exception
-                        break
+                        raise Exception
+                        continue
                 else:
-                    raise Exception
-                    continue
+                    ii = sort_ii[0]
 
                 batch_best_i = ii # !!!
                 batch_best_pal = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[batch_best_i])]).reshape((1, -1, 3))

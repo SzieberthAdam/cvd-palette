@@ -27,8 +27,8 @@ def rgbarr_to_labarr(arr):
     arr = colour.XYZ_to_Lab(arr)
     return arr
 
-def get_boundary_colors(isoluminant_level0_image_path):
-    in_img_path = pathlib.Path(isoluminant_level0_image_path)
+def get_boundary_colors(isoluminant_image_path):
+    in_img_path = pathlib.Path(isoluminant_image_path)
     in_img = Image.open(str(in_img_path))
     in_rgb_arr = np.array(in_img).reshape((-1, 3))
     in_lab_arr = rgbarr_to_labarr(in_rgb_arr)
@@ -155,9 +155,9 @@ if __name__ == "__main__":
 
     root = pathlib.Path(__file__).parent.resolve()
 
-    in_img_path = root.parent / "isoluminant" / "level0" / f'{graylevel:0>2X}.png'
-    isoluminant_level0_image_path = in_img_path
-    in_img_path = pathlib.Path(isoluminant_level0_image_path)
+    in_img_path = root.parent / "isoluminant" / "szieberth" / f'{graylevel:0>2X}.png'
+    isoluminant_image_path = in_img_path
+    in_img_path = pathlib.Path(isoluminant_image_path)
     in_img = Image.open(str(in_img_path))
     in_rgb_arr0 = np.array(in_img).reshape((-1, 3))
     # raise Exception   # to test sort functions
@@ -169,14 +169,19 @@ if __name__ == "__main__":
     if not graylevel_dir.is_dir():
         graylevel_dir.mkdir(parents=True, exist_ok=True)
 
-    bound_img_path = graylevel_dir / f'{graylevel:0>2X}-0000-02.png'
-    dEtxtpath = graylevel_dir / f'{graylevel:0>2X}-0000-02.txt'
+    bound_img_path = graylevel_dir / f'{graylevel:0>2X}-0002-01.png'
+    dEtxtpath = graylevel_dir / f'{graylevel:0>2X}-0002-01.txt'
 
     if bound_img_path.is_file():
         bound_img = Image.open(str(bound_img_path))
         bound_rgb_arr = np.asarray(bound_img)
         assert bound_rgb_arr.shape[0] == 1  # assert one row, I hope there will never be more
         bound_rgb_arr = bound_rgb_arr.reshape((-1, 3))
+        # assert resave sorted
+        # _, bound_rgb_arr, _ = sort_rgb(bound_rgb_arr)
+        # bound_img = Image.fromarray(bound_rgb_arr.reshape((1, -1, 3)), 'RGB')
+        # bound_img.save(str(bound_img_path))
+        # raise Exception
         with dEtxtpath.open("r") as f:
             bound_dE = float(f.read())
     else:

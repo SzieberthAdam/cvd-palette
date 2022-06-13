@@ -21,6 +21,9 @@ from PIL import Image
 import numpy as np
 
 
+import sortpals
+
+
 batchsize = 100000
 
 
@@ -105,13 +108,16 @@ def dEstr(dE, combs, batchnr=None):
         lines.append(s)
     return "\n".join(lines+[""])
 
-min_nci_dE = 20
+min_nci_dE = 10
 
 if __name__ == "__main__":
 
     np.seterr(all='raise')
 
     root = pathlib.Path(__file__).parent.resolve()
+    work = root / "work"
+    if not work.is_dir():
+        work.mkdir(parents=True, exist_ok=True)
 
     usage = """Usage: python generate.py <palette size> <pyramid level1 colors> <next-level-neighbour-colors> <next-level-closest-de-colors> [number-of-palettes (default 1)] [image of existing palettes]"""
     try:
@@ -141,12 +147,16 @@ if __name__ == "__main__":
         except (IndexError, ValueError):
             print(usage)
             sys.exit(1)
-        else:
-            not_close_to_img = Image.open(str(not_close_to_img_path))
-            not_close_to_rgb_arr = np.array(not_close_to_img)
     else:
         not_close_to_img_path = img_path
-        not_close_to_rgb_arr = np.zeros((0, cvd_n, 3))
+
+
+    if not_close_to_img_path.is_file():
+        not_close_to_img = Image.open(str(not_close_to_img_path))
+        not_close_to_rgb_arr = np.array(not_close_to_img, dtype="uint8")
+    else:
+        not_close_to_rgb_arr = np.zeros((0, cvd_n, 3), dtype="uint8")
+
     not_close_to_lab_arr = rgbarr_to_labarr(not_close_to_rgb_arr)
 
     haldclutdir = root.parent / "haldclut"
@@ -185,8 +195,8 @@ if __name__ == "__main__":
 
             print(f'=== LEVEL {level} ===')
 
-            level_dE_path = root / f'cvd{cvd_n}-{level:0>2}-{palnr:0>4}.txt'
-            level_img_path = root / f'cvd{cvd_n}-{level:0>2}-{palnr:0>4}.png'
+            level_dE_path = work / f'{cvd_n:0>2}-{level1colors:0>5}-{n_neigh:0>5}-{n_clde:0>5}-{palnr:0>4}-{level:0>2}.txt'
+            level_img_path = work / f'{cvd_n:0>2}-{level1colors:0>5}-{n_neigh:0>5}-{n_clde:0>5}-{palnr:0>4}-{level:0>2}.png'
 
 
             if level_dE_path.is_file() and level_img_path.is_file():
@@ -200,6 +210,7 @@ if __name__ == "__main__":
                     prevbatchnr = int(firstline)
                 else:
                     prevbatchnr = None
+                    level += 1
                     continue
             else:
                 prevbatchnr = None
@@ -360,6 +371,10 @@ if __name__ == "__main__":
             prev_color_arrs = color_arrs
 
         not_close_to_rgb_arr = np.vstack((not_close_to_rgb_arr, best_pal))
+        # not_close_to_rgb_arr = sortpals.sort_rgb_arr(not_close_to_rgb_arr)
         not_close_to_lab_arr = rgbarr_to_labarr(not_close_to_rgb_arr)
         not_close_to_img = Image.fromarray(not_close_to_rgb_arr, 'RGB')
         not_close_to_img.save(not_close_to_img_path)
+        report_str = sortpals.report_str(not_close_to_rgb_arr)
+        with not_close_to_img_path.with_suffix(".txt").open("w", encoding="utf8", newline='\r\n') as f:
+            f.write(report_str)

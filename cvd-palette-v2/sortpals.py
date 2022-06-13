@@ -21,9 +21,6 @@ from PIL import Image
 import numpy as np
 
 
-batchsize = 100000
-
-
 clutschars = "NDPT"
 clutnames = (
     "normal",
@@ -108,9 +105,21 @@ def sort_rgb_arr(rgb_arr, *, dE_arr=None):
     return sorted_rgb_arr
 
 
-def report_str(rgb_arr):
+def report_str(rgb_arr, *, dE_arr=None):
+    haldclutdir = _thisdir.parent / "haldclut"
+    cluts = (
+        clut.CLUT(str(haldclutdir / "identity" / "identity.png")),       # normal
+        clut.CLUT(str(haldclutdir / "cvd" / "deuta.machado2010.png")),   # deuteranopia
+        clut.CLUT(str(haldclutdir / "cvd" / "prota.machado2010.png")),   # protanopia
+        clut.CLUT(str(haldclutdir / "cvd" / "trita.machado2010.png")),   # tritanopia
+    )
+    dE_arr = dE_arr or get_dE_arr(rgb_arr)
+
     n_pals = rgb_arr.shape[0]
+    n_colors = rgb_arr.shape[-2]
     combs = tuple(itertools.combinations(range(n_colors), 2))
+
+    clut_rgb_arrs = {clutnames[cti]: clut_(rgb_arr) for cti, clut_ in enumerate(cluts)}
 
     rowheaders = np.array([f'C{c1i+1} vs. C{c2i+1}' for c1i, c2i in combs])
     rowheaders_len = max((len(s) for s in rowheaders))
@@ -130,17 +139,14 @@ def report_str(rgb_arr):
     rgbstr_fs = f'{{:^{colheaders_len}}}'
     palnr_fs = f'{{:^{rowheaders_len}}}'
 
-    sorted_argsort_dE_arr_by_vision = argsort_dE_arr_by_vision[sort_ii]
-    sorted_sort_dE_arr_by_vision = sort_dE_arr_by_vision[sort_ii]
-    sorted_argsort_dE_arr_by_pairs = argsort_dE_arr_by_pairs[sort_ii]
-    sorted_sort_dE_arr_by_pairs = sort_dE_arr_by_pairs[sort_ii]
-    sorted_clut_rgb_arrs = {clutnames[cti]: clut_(sorted_rgb_arr) for cti, clut_ in enumerate(cluts)}
-
     pal_strs = []
 
     for pi in range(n_pals):
-        vii = sorted_argsort_dE_arr_by_vision[pi]
-        pai = sorted_argsort_dE_arr_by_pairs[pi]
+        min_dE_by_vision = np.min(dE_arr[pi], axis=0)  # shape = (n_pals, n_vision)
+        vii = np.argsort(min_dE_by_vision)
+        min_dE_by_pairs = np.min(dE_arr[pi], axis=1) # shape = (n_pals, n_pairs)
+        pai = np.argsort(min_dE_by_pairs)
+
         pal_dE_arr_2dsorted = dE_arr[pi][pai][:,vii]
         rowheaders_2dsorted = np.array(rowheaders)[pai]
         colheaders_2dsorted = np.array(colheaders)[vii]
@@ -149,8 +155,8 @@ def report_str(rgb_arr):
             srow = []
             for vi, val in enumerate(row):
                 s = val_fs.format(val)
-                ismin_by_vision = (val == sorted_sort_dE_arr_by_vision[pi][vi])
-                ismin_by_pairs = (val == sorted_sort_dE_arr_by_pairs[pi][ri])
+                ismin_by_vision = (val == min_dE_by_vision[vii][vi])
+                ismin_by_pairs = (val == min_dE_by_pairs[pai][ri])
                 if ismin_by_vision and ismin_by_pairs:
                     s = "#" + s[1:]
                 elif ismin_by_vision:
@@ -182,7 +188,7 @@ def report_str(rgb_arr):
         s += " " * len(rowheader_sep)
         s += lowestheader_fs.format("lowest")
         s += lowestvisionval_sep
-        s += lowestvisionval_sep.join([val_fs.format(val) for val in sorted_sort_dE_arr_by_vision[pi]])
+        s += lowestvisionval_sep.join([val_fs.format(val) for val in min_dE_by_vision[vii]])
         lines2.append(s)
         s = ""
         s += "=" * rowheaders_len
@@ -195,7 +201,7 @@ def report_str(rgb_arr):
             s = ""
             s += rowheader_strs[ri]
             s += rowheader_sep
-            s += lowestpairval_fs.format(sorted_sort_dE_arr_by_pairs[pi][ri])
+            s += lowestpairval_fs.format(min_dE_by_pairs[pai][ri])
             s += lowestpairval_sep
             s += val_sep.join(row)
             lines2.append(s)
@@ -229,7 +235,7 @@ def report_str(rgb_arr):
             rgbstrs = []
             for vi in vii:
                 clutname = clutnames[vi]
-                rgb = sorted_clut_rgb_arrs[clutname][pi][ci]
+                rgb = clut_rgb_arrs[clutname][pi][ci]
                 rgbstr_ = rgbstr(rgb)
                 rgbstrs.append(rgbstr_fs.format(rgbstr_))
             s += val_sep.join(rgbstrs)
@@ -244,59 +250,6 @@ def report_str(rgb_arr):
     s_all = f'\n{"#"*len(lines2[0])}\n\n'.join(pal_strs)
     return s_all
 
-
-def get_pal_values(pal_, cluts):
-    n_vision = len(cluts)
-    n_pals = 1  # technical to mimic main logic
-    n_colors = pal_.shape[-2]
-    b = np.array([[0] * n_colors])  # technical to mimic main logic
-    combs = tuple(itertools.combinations(range(n_colors), 2))
-    n_pairs = len(combs)
-    color_arrs = [a.reshape((1, 3)) for a in pal_[0]]
-    dE_arr = np.zeros((n_pals, n_pairs, n_vision), dtype="float64")
-    for v, clut_ in enumerate(cluts):
-        this_color_arrs = [clut_.clut[color_arrs[vp][:,0], color_arrs[vp][:,1], color_arrs[vp][:,2]] for vp in range(len(color_arrs))]
-        for p, (c1i, c2i) in enumerate(combs):
-            lab1 = rgbarr_to_labarr(this_color_arrs[c1i][b[:,c1i]])
-            lab2 = rgbarr_to_labarr(this_color_arrs[c2i][b[:,c2i]])
-            dE_arr[:,p][:,v] = this_dE_arr = de2000.delta_e_from_lab(lab1, lab2)
-    sort1_dE_arr = np.sort(np.min(dE_arr, axis=1))
-    sort2_dE_arr = np.sort(dE_arr.reshape((dE_arr.shape[0], dE_arr.shape[1]* dE_arr.shape[2])), axis=1)
-    sort3_dE_arr = np.hstack((sort1_dE_arr, sort2_dE_arr))
-    sort_ii = np.flip(np.lexsort(np.rot90(sort3_dE_arr)))  # technical to mimic main logic
-    batch_best_i = sort_ii[0]  # technical to mimic main logic
-    batch_best_dE = dE_arr[batch_best_i]
-    batch_best_sorted_dE = sort3_dE_arr[batch_best_i]
-    #batch_best_pal = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[batch_best_i])]).reshape((1, -1, 3))
-    return batch_best_dE, batch_best_sorted_dE
-
-
-def dEstr(dE, combs, batchnr=None):
-    ldE0 = np.min(dE, axis=0)
-    vision_sort = tuple(np.argsort(ldE0))
-    longest_clutname_len = max([len(s) for s in clutnames])
-    _fs = f'{{0:<{longest_clutname_len}}}'
-    rowheaders = [_fs.format(clutnames[i]) for i in vision_sort]
-    colheaders = [f'{"lowest":^8}'] + [f'{str(t):^8}' for t in combs]
-    tdE = np.transpose(dE)
-    ldE = [ldE0[i] for i in vision_sort]
-    dEvals = [[f'{ldE0[i]:>8.4f}'] + [f'{v:>8.4f}' for v in tdE[i]] for i in vision_sort]
-    if batchnr is None:
-        lines2 = []
-    else:
-        lines2 = [str(batchnr), ""]
-    for li in range(len(rowheaders) + 2):
-        if li == 0:
-            s = " " * len(rowheaders[0]) + " | ".join([""] + colheaders)
-            linelen = len(s)
-        elif li == 1:
-            s = "-" * linelen
-        else:
-            s = rowheaders[li-2] + " | ".join([""] + dEvals[li-2])
-        lines2.append(s)
-    return "\n".join(lines2+[""])
-
-min_nci_dE = 20
 
 if __name__ == "__main__":
 
@@ -359,6 +312,12 @@ if __name__ == "__main__":
     sorted_img = Image.fromarray(sorted_rgb_arr, 'RGB')
     sorted_img.save(sorted_img_path)
 
+    # replace original arrays with sorted ones
+    rgb_arr = rgb_arr[sort_ii]
+    dE_arr = dE_arr[sort_ii]
+
+    clut_rgb_arrs = {clutnames[cti]: clut_(rgb_arr) for cti, clut_ in enumerate(cluts)}
+
     rowheaders = np.array([f'C{c1i+1} vs. C{c2i+1}' for c1i, c2i in combs])
     rowheaders_len = max((len(s) for s in rowheaders))
     rowheader_fs = f'{{:<{rowheaders_len}}}'
@@ -377,22 +336,15 @@ if __name__ == "__main__":
     rgbstr_fs = f'{{:^{colheaders_len}}}'
     palnr_fs = f'{{:^{rowheaders_len}}}'
 
-    # replace original arrays with sorted ones
-    #dE_arr = dE_arr[sort_ii]
-    sorted_orig_dE_arr = dE_arr[sort_ii]
-    sorted_argsort_dE_arr_by_vision = argsort_dE_arr_by_vision[sort_ii]
-    sorted_sort_dE_arr_by_vision = sort_dE_arr_by_vision[sort_ii]
-    sorted_argsort_dE_arr_by_pairs = argsort_dE_arr_by_pairs[sort_ii]
-    sorted_sort_dE_arr_by_pairs = sort_dE_arr_by_pairs[sort_ii]
-    sorted_clut_rgb_arrs = {clutnames[cti]: clut_(sorted_rgb_arr) for cti, clut_ in enumerate(cluts)}
-
     pal_strs = []
 
     for pi in range(n_pals):
-        vii = sorted_argsort_dE_arr_by_vision[pi]
-        pai = sorted_argsort_dE_arr_by_pairs[pi]
-        raise Exception
-        pal_dE_arr_2dsorted = sorted_orig_dE_arr[pi][pai][:,vii]
+        min_dE_by_vision = np.min(dE_arr[pi], axis=0)  # shape = (n_pals, n_vision)
+        vii = np.argsort(min_dE_by_vision)
+        min_dE_by_pairs = np.min(dE_arr[pi], axis=1) # shape = (n_pals, n_pairs)
+        pai = np.argsort(min_dE_by_pairs)
+
+        pal_dE_arr_2dsorted = dE_arr[pi][pai][:,vii]
         rowheaders_2dsorted = np.array(rowheaders)[pai]
         colheaders_2dsorted = np.array(colheaders)[vii]
         pal_dE_arr_2dsorted_strs = np.zeros(pal_dE_arr_2dsorted.shape, dtype=f'<U{max(rowheaders_len, colheaders_len)}')
@@ -400,8 +352,8 @@ if __name__ == "__main__":
             srow = []
             for vi, val in enumerate(row):
                 s = val_fs.format(val)
-                ismin_by_vision = (val == sorted_sort_dE_arr_by_vision[pi][vi])
-                ismin_by_pairs = (val == sorted_sort_dE_arr_by_pairs[pi][ri])
+                ismin_by_vision = (val == min_dE_by_vision[vii][vi])
+                ismin_by_pairs = (val == min_dE_by_pairs[pai][ri])
                 if ismin_by_vision and ismin_by_pairs:
                     s = "#" + s[1:]
                 elif ismin_by_vision:
@@ -433,7 +385,7 @@ if __name__ == "__main__":
         s += " " * len(rowheader_sep)
         s += lowestheader_fs.format("lowest")
         s += lowestvisionval_sep
-        s += lowestvisionval_sep.join([val_fs.format(val) for val in sorted_sort_dE_arr_by_vision[pi]])
+        s += lowestvisionval_sep.join([val_fs.format(val) for val in min_dE_by_vision[vii]])
         lines2.append(s)
         s = ""
         s += "=" * rowheaders_len
@@ -446,7 +398,7 @@ if __name__ == "__main__":
             s = ""
             s += rowheader_strs[ri]
             s += rowheader_sep
-            s += lowestpairval_fs.format(sorted_sort_dE_arr_by_pairs[pi][ri])
+            s += lowestpairval_fs.format(min_dE_by_pairs[pai][ri])
             s += lowestpairval_sep
             s += val_sep.join(row)
             lines2.append(s)
@@ -480,7 +432,7 @@ if __name__ == "__main__":
             rgbstrs = []
             for vi in vii:
                 clutname = clutnames[vi]
-                rgb = sorted_clut_rgb_arrs[clutname][pi][ci]
+                rgb = clut_rgb_arrs[clutname][pi][ci]
                 rgbstr_ = rgbstr(rgb)
                 rgbstrs.append(rgbstr_fs.format(rgbstr_))
             s += val_sep.join(rgbstrs)

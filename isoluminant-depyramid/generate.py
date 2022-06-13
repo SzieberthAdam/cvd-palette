@@ -145,170 +145,194 @@ def np_set_difference_argarr(A, B):
 if __name__ == "__main__":
 
     try:
-        graylevel = int(sys.argv[1], 16)
-        assert graylevel in range(0,256)
-        initcolors = int(sys.argv[2])
+        initcolors = int(sys.argv[1])
+        graylevels = []
+        for x in sys.argv[2:]:
+            if "-" in x:
+                s, e = x.split("-")
+                s = s or "00"
+                e = e or "FF"
+            elif "–" in x:
+                s, e = x.split("–")
+                s = s or "00"
+                e = e or "FF"
+            else:
+                s = x
+                e = None
+            s = int(s, 16)
+            assert s in range(0,256)
+            if e is None:
+                graylevels.append(s)
+            else:
+                e = int(e, 16)
+                assert e in range(0,256)
+                graylevels.extend(range(s, e+1))
     except (IndexError, ValueError, AssertionError):
-        print('Usage: python generate.py <graylevel> <initcolors>')
+        print('Usage: python generate.py <initcolors> <graylevel> [graylevel]...')
         print('0 <= graylevel <= FF (base 16)')
+        print('graylevel range format: 00-FF')
         sys.exit(1)
 
     root = pathlib.Path(__file__).parent.resolve()
 
-    in_img_path = root.parent / "isoluminant" / "szieberth" / f'{graylevel:0>2X}.png'
-    isoluminant_image_path = in_img_path
-    in_img_path = pathlib.Path(isoluminant_image_path)
-    in_img = Image.open(str(in_img_path))
-    in_rgb_arr0 = np.array(in_img).reshape((-1, 3))
-    # raise Exception   # to test sort functions
-    _, in_rgb_arr, in_sortby_arr = sort_rgb(in_rgb_arr0)
-    in_lab_arr = rgbarr_to_labarr(in_rgb_arr)
-    # raise Exception   # to test sort functions
+    for graylevel in graylevels:
 
-    graylevel_dir = root / f'{graylevel:0>2X}'
-    if not graylevel_dir.is_dir():
-        graylevel_dir.mkdir(parents=True, exist_ok=True)
+        print(f'=== {graylevel:0>2X} ===')
 
-    bound_img_path = graylevel_dir / f'{graylevel:0>2X}-0002-01.png'
-    dEtxtpath = graylevel_dir / f'{graylevel:0>2X}-0002-01.txt'
+        in_img_path = root.parent / "isoluminant" / "szieberth" / f'{graylevel:0>2X}.png'
+        isoluminant_image_path = in_img_path
+        in_img_path = pathlib.Path(isoluminant_image_path)
+        in_img = Image.open(str(in_img_path))
+        in_rgb_arr0 = np.array(in_img).reshape((-1, 3))
+        # raise Exception   # to test sort functions
+        _, in_rgb_arr, in_sortby_arr = sort_rgb(in_rgb_arr0)
+        in_lab_arr = rgbarr_to_labarr(in_rgb_arr)
+        # raise Exception   # to test sort functions
 
-    if bound_img_path.is_file():
-        bound_img = Image.open(str(bound_img_path))
-        bound_rgb_arr = np.asarray(bound_img)
-        assert bound_rgb_arr.shape[0] == 1  # assert one row, I hope there will never be more
-        bound_rgb_arr = bound_rgb_arr.reshape((-1, 3))
-        # assert resave sorted
-        # _, bound_rgb_arr, _ = sort_rgb(bound_rgb_arr)
-        # bound_img = Image.fromarray(bound_rgb_arr.reshape((1, -1, 3)), 'RGB')
-        # bound_img.save(str(bound_img_path))
-        # raise Exception
-        with dEtxtpath.open("r") as f:
-            bound_dE = float(f.read())
-    else:
-        bound_dE, bound_rgb_arr = get_boundary_colors(in_img_path)
-        assert bound_rgb_arr.shape[0] == 1  # assert one row, I hope there will never be more
-        bound_rgb_arr = bound_rgb_arr.reshape((-1, 3))
-        _, bound_rgb_arr, _ = sort_rgb(bound_rgb_arr)
-        bound_img = Image.fromarray(bound_rgb_arr.reshape((1, -1, 3)), 'RGB')
-        bound_img.save(str(bound_img_path))
-        with dEtxtpath.open("w") as f:
-            f.write(str(bound_dE))
+        graylevel_dir = root / f'{graylevel:0>2X}'
+        if not graylevel_dir.is_dir():
+            graylevel_dir.mkdir(parents=True, exist_ok=True)
 
-    source_rgb_arr = bound_rgb_arr
+        bound_img_path = graylevel_dir / f'{graylevel:0>2X}-0002-01.png'
+        dEtxtpath = graylevel_dir / f'{graylevel:0>2X}-0002-01.txt'
 
-    level = 1
-    target_rgb_arr = np.zeros((0, 3))
-    colors = source_rgb_arr.shape[0]
+        if bound_img_path.is_file():
+            bound_img = Image.open(str(bound_img_path))
+            bound_rgb_arr = np.asarray(bound_img)
+            assert bound_rgb_arr.shape[0] == 1  # assert one row, I hope there will never be more
+            bound_rgb_arr = bound_rgb_arr.reshape((-1, 3))
+            # assert resave sorted
+            # _, bound_rgb_arr, _ = sort_rgb(bound_rgb_arr)
+            # bound_img = Image.fromarray(bound_rgb_arr.reshape((1, -1, 3)), 'RGB')
+            # bound_img.save(str(bound_img_path))
+            # raise Exception
+            with dEtxtpath.open("r") as f:
+                bound_dE = float(f.read())
+        else:
+            bound_dE, bound_rgb_arr = get_boundary_colors(in_img_path)
+            assert bound_rgb_arr.shape[0] == 1  # assert one row, I hope there will never be more
+            bound_rgb_arr = bound_rgb_arr.reshape((-1, 3))
+            _, bound_rgb_arr, _ = sort_rgb(bound_rgb_arr)
+            bound_img = Image.fromarray(bound_rgb_arr.reshape((1, -1, 3)), 'RGB')
+            bound_img.save(str(bound_img_path))
+            with dEtxtpath.open("w") as f:
+                f.write(str(bound_dE))
 
-    target_img_path = graylevel_dir / f'{graylevel:0>2X}-{initcolors:0>4}-{level:0>2}.png'
-    if target_img_path.is_file():
-        target_img = Image.open(str(target_img_path))
-        target_rgb_arr = np.asarray(target_img).reshape((-1, 3))
-        source_rgb_arr = target_rgb_arr
-    else:
-        while source_rgb_arr.shape[0] < initcolors:
-            source_lab_arr = rgbarr_to_labarr(source_rgb_arr)
-            #target_rgb_arr = np.copy(source_rgb_arr)
+        source_rgb_arr = bound_rgb_arr
 
-            dE_arr = np.zeros((len(in_lab_arr), source_rgb_arr.shape[0]), dtype="float64")
-            for i in range(source_rgb_arr.shape[0]):
-                color_lab_arr = np.tile(source_lab_arr[i], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
-                dE_arr[:, i] = color_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color_lab_arr)
+        level = 1
+        target_rgb_arr = np.zeros((0, 3))
+        colors = source_rgb_arr.shape[0]
 
-            values = np.min(dE_arr, axis=1)
-            for pick_i in reversed(np.argsort(values)):
-                pick_rgb = in_rgb_arr[pick_i]
-                print(source_rgb_arr.shape[0] + 1, pick_rgb, values[pick_i])
-                #print(pick_rgb, values[pick_i], dE_arr[pick_i])
-                target_rgb_arr = np.append(source_rgb_arr, pick_rgb.reshape((1,3)), axis=0)
-                _, target_rgb_arr, _ = sort_rgb(target_rgb_arr.reshape((-1, 3)))
-                break
-            source_rgb_arr = target_rgb_arr
-
-        target_img = Image.fromarray(target_rgb_arr.reshape((1, -1, 3)), 'RGB')
-        target_img.save(str(target_img_path))
-
-    while target_rgb_arr.shape[0] < in_rgb_arr.shape[0]:
-        level += 1
         target_img_path = graylevel_dir / f'{graylevel:0>2X}-{initcolors:0>4}-{level:0>2}.png'
         if target_img_path.is_file():
             target_img = Image.open(str(target_img_path))
-            target_rgb_arr = np.asarray(target_img)
-            assert target_rgb_arr.shape[0] == 1  # assert one row, I hope there will never be more
-            target_rgb_arr = target_rgb_arr.reshape((-1, 3))
+            target_rgb_arr = np.asarray(target_img).reshape((-1, 3))
             source_rgb_arr = target_rgb_arr
         else:
-            print(f'=== LEVEL {level} ===')
-            _, source_rgb_arr, source_sortby_arr = sort_rgb(source_rgb_arr)
-            source_lab_arr = rgbarr_to_labarr(source_rgb_arr)
-            #print(source_rgb_arr.shape, source_lab_arr.shape, source_sortby_arr.shape)
-            target_rgb_arr = np.copy(source_rgb_arr)
-            new_rgbs = set()
-            for c0 in range(source_sortby_arr.shape[0]):
-                c1 = (c0+1) % source_sortby_arr.shape[0]
-                c0_rgb = source_rgb_arr[c0]
-                c1_rgb = source_rgb_arr[c1]
-                c0_lab = source_lab_arr[c0]
-                c1_lab = source_lab_arr[c1]
-                c0_idx = np.where((in_rgb_arr == c0_rgb).all(axis=1))[0][0]
-                c1_idx = np.where((in_rgb_arr == c1_rgb).all(axis=1))[0][0]
-                if c0_idx < c1_idx:
-                    range0_rgb_arr = in_rgb_arr[c0_idx+1:c1_idx]
-                    range0_lab_arr = in_lab_arr[c0_idx+1:c1_idx]
-                else:
-                    range0_rgb_arr = np.vstack((in_rgb_arr[c0_idx+1:], in_rgb_arr[:c1_idx]))
-                    range0_lab_arr = np.vstack((in_lab_arr[c0_idx+1:], in_lab_arr[:c1_idx]))
-                n = range0_rgb_arr.shape[0]
+            while source_rgb_arr.shape[0] < initcolors:
+                source_lab_arr = rgbarr_to_labarr(source_rgb_arr)
+                #target_rgb_arr = np.copy(source_rgb_arr)
 
-                range1_rgb_arrs = [None] * 2
-                range1_lab_arrs = [None] * 2
-                if n == 0:
-                    continue
-                elif n == 1:
-                    range1_rgb_arrs[0] = range0_rgb_arr[:1]
-                    range1_rgb_arrs[1] = None # np.array([], shape=(0, 3), dtype="uint8")
-                    range1_lab_arrs[0] = range0_lab_arr[:1]
-                    range1_lab_arrs[1] = None # np.array([], shape=(0, 3), dtype="float64")
-                elif n in {2, 3}:
-                    range1_rgb_arrs[0] = range0_rgb_arr[:1]
-                    range1_rgb_arrs[1] = range0_rgb_arr[-1:]
-                    range1_lab_arrs[0] = range0_lab_arr[:1]
-                    range1_lab_arrs[1] = range0_lab_arr[-1:]
-                elif n in {4, 5}:
-                    range1_rgb_arrs[0] = range0_rgb_arr[:2]
-                    range1_rgb_arrs[1] = range0_rgb_arr[-2:]
-                    range1_lab_arrs[0] = range0_lab_arr[:2]
-                    range1_lab_arrs[1] = range0_lab_arr[-2:]
-                else:
-                    r = n//6
-                    range1_rgb_arrs[0] = range0_rgb_arr[r:2*r]
-                    range1_rgb_arrs[1] = range0_rgb_arr[-2*r:-r]
-                    range1_lab_arrs[0] = range0_lab_arr[r:2*r]
-                    range1_lab_arrs[1] = range0_lab_arr[-2*r:-r]
+                dE_arr = np.zeros((len(in_lab_arr), source_rgb_arr.shape[0]), dtype="float64")
+                for i in range(source_rgb_arr.shape[0]):
+                    color_lab_arr = np.tile(source_lab_arr[i], len(in_lab_arr)).reshape((len(in_lab_arr), 3))
+                    dE_arr[:, i] = color_dE_arr = de2000.delta_e_from_lab(in_lab_arr, color_lab_arr)
 
-                cc_rgbs = (c0_rgb, c1_rgb)
-                cc_labs = (c0_lab, c1_lab)
-                for cci in range(2):
-                    if range1_rgb_arrs[cci] is None:
-                        continue
-                    elif range1_rgb_arrs[cci].shape[0] == 1:
-                        color_rgb_pick = range1_rgb_arrs[cci][0]
-                    else:
-                        color_lab_arr = np.tile(cc_labs[cci], range1_lab_arrs[cci].shape[0]).reshape((-1, 3))
-                        color_dE_arr = de2000.delta_e_from_lab(range1_lab_arrs[cci], color_lab_arr)
-                        color_dE_arr_ii = np.argsort(color_dE_arr)
-                        color_dE_arr_pick_ii = color_dE_arr_ii[color_dE_arr_ii.shape[0]//2]
-                        color_rgb_pick = range1_rgb_arrs[cci][color_dE_arr_pick_ii]
-                    target_rgb_arr = np.append(target_rgb_arr, color_rgb_pick).reshape((-1, 3))
-
-
-                    #dE_arrs = [np.zeros(range1_lab_arrs[i].shape[0], dtype="float64") for i in range(2)]
-
-            _, target_rgb_arr, _ = sort_rgb(target_rgb_arr)
+                values = np.min(dE_arr, axis=1)
+                for pick_i in reversed(np.argsort(values)):
+                    pick_rgb = in_rgb_arr[pick_i]
+                    print(source_rgb_arr.shape[0] + 1, pick_rgb, values[pick_i])
+                    #print(pick_rgb, values[pick_i], dE_arr[pick_i])
+                    target_rgb_arr = np.append(source_rgb_arr, pick_rgb.reshape((1,3)), axis=0)
+                    _, target_rgb_arr, _ = sort_rgb(target_rgb_arr.reshape((-1, 3)))
+                    break
+                source_rgb_arr = target_rgb_arr
 
             target_img = Image.fromarray(target_rgb_arr.reshape((1, -1, 3)), 'RGB')
             target_img.save(str(target_img_path))
 
-            source_rgb_arr = target_rgb_arr
+        while target_rgb_arr.shape[0] < in_rgb_arr.shape[0]:
+            level += 1
+            target_img_path = graylevel_dir / f'{graylevel:0>2X}-{initcolors:0>4}-{level:0>2}.png'
+            if target_img_path.is_file():
+                target_img = Image.open(str(target_img_path))
+                target_rgb_arr = np.asarray(target_img)
+                assert target_rgb_arr.shape[0] == 1  # assert one row, I hope there will never be more
+                target_rgb_arr = target_rgb_arr.reshape((-1, 3))
+                source_rgb_arr = target_rgb_arr
+            else:
+                print(f'=== LEVEL {level} ===')
+                _, source_rgb_arr, source_sortby_arr = sort_rgb(source_rgb_arr)
+                source_lab_arr = rgbarr_to_labarr(source_rgb_arr)
+                #print(source_rgb_arr.shape, source_lab_arr.shape, source_sortby_arr.shape)
+                target_rgb_arr = np.copy(source_rgb_arr)
+                new_rgbs = set()
+                for c0 in range(source_sortby_arr.shape[0]):
+                    c1 = (c0+1) % source_sortby_arr.shape[0]
+                    c0_rgb = source_rgb_arr[c0]
+                    c1_rgb = source_rgb_arr[c1]
+                    c0_lab = source_lab_arr[c0]
+                    c1_lab = source_lab_arr[c1]
+                    c0_idx = np.where((in_rgb_arr == c0_rgb).all(axis=1))[0][0]
+                    c1_idx = np.where((in_rgb_arr == c1_rgb).all(axis=1))[0][0]
+                    if c0_idx < c1_idx:
+                        range0_rgb_arr = in_rgb_arr[c0_idx+1:c1_idx]
+                        range0_lab_arr = in_lab_arr[c0_idx+1:c1_idx]
+                    else:
+                        range0_rgb_arr = np.vstack((in_rgb_arr[c0_idx+1:], in_rgb_arr[:c1_idx]))
+                        range0_lab_arr = np.vstack((in_lab_arr[c0_idx+1:], in_lab_arr[:c1_idx]))
+                    n = range0_rgb_arr.shape[0]
 
-            #input("PRESS ENTER TO CONTINUE")
+                    range1_rgb_arrs = [None] * 2
+                    range1_lab_arrs = [None] * 2
+                    if n == 0:
+                        continue
+                    elif n == 1:
+                        range1_rgb_arrs[0] = range0_rgb_arr[:1]
+                        range1_rgb_arrs[1] = None # np.array([], shape=(0, 3), dtype="uint8")
+                        range1_lab_arrs[0] = range0_lab_arr[:1]
+                        range1_lab_arrs[1] = None # np.array([], shape=(0, 3), dtype="float64")
+                    elif n in {2, 3}:
+                        range1_rgb_arrs[0] = range0_rgb_arr[:1]
+                        range1_rgb_arrs[1] = range0_rgb_arr[-1:]
+                        range1_lab_arrs[0] = range0_lab_arr[:1]
+                        range1_lab_arrs[1] = range0_lab_arr[-1:]
+                    elif n in {4, 5}:
+                        range1_rgb_arrs[0] = range0_rgb_arr[:2]
+                        range1_rgb_arrs[1] = range0_rgb_arr[-2:]
+                        range1_lab_arrs[0] = range0_lab_arr[:2]
+                        range1_lab_arrs[1] = range0_lab_arr[-2:]
+                    else:
+                        r = n//6
+                        range1_rgb_arrs[0] = range0_rgb_arr[r:2*r]
+                        range1_rgb_arrs[1] = range0_rgb_arr[-2*r:-r]
+                        range1_lab_arrs[0] = range0_lab_arr[r:2*r]
+                        range1_lab_arrs[1] = range0_lab_arr[-2*r:-r]
+
+                    cc_rgbs = (c0_rgb, c1_rgb)
+                    cc_labs = (c0_lab, c1_lab)
+                    for cci in range(2):
+                        if range1_rgb_arrs[cci] is None:
+                            continue
+                        elif range1_rgb_arrs[cci].shape[0] == 1:
+                            color_rgb_pick = range1_rgb_arrs[cci][0]
+                        else:
+                            color_lab_arr = np.tile(cc_labs[cci], range1_lab_arrs[cci].shape[0]).reshape((-1, 3))
+                            color_dE_arr = de2000.delta_e_from_lab(range1_lab_arrs[cci], color_lab_arr)
+                            color_dE_arr_ii = np.argsort(color_dE_arr)
+                            color_dE_arr_pick_ii = color_dE_arr_ii[color_dE_arr_ii.shape[0]//2]
+                            color_rgb_pick = range1_rgb_arrs[cci][color_dE_arr_pick_ii]
+                        target_rgb_arr = np.append(target_rgb_arr, color_rgb_pick).reshape((-1, 3))
+
+
+                        #dE_arrs = [np.zeros(range1_lab_arrs[i].shape[0], dtype="float64") for i in range(2)]
+
+                _, target_rgb_arr, _ = sort_rgb(target_rgb_arr)
+
+                target_img = Image.fromarray(target_rgb_arr.reshape((1, -1, 3)), 'RGB')
+                target_img.save(str(target_img_path))
+
+                source_rgb_arr = target_rgb_arr
+
+                #input("PRESS ENTER TO CONTINUE")

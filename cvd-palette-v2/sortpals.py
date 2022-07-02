@@ -77,7 +77,7 @@ def get_dE_arr(rgb_arr):
 
 
 def argsort_rgb_arr_keys(rgb_arr, *, dE_arr=None):
-    dE_arr = dE_arr or get_dE_arr(rgb_arr)
+    dE_arr = (get_dE_arr(rgb_arr) if dE_arr is None else dE_arr)
     min_dE_by_vision = np.min(dE_arr, axis=1)  # shape = (n_pals, n_vision)
     argsort_dE_arr_by_vision = np.argsort(min_dE_by_vision)  # shape = (n_pals, n_vision)
     #sort_dE_arr_by_vision = np.sort(min_dE_by_vision)  # shape = (n_pals, n_vision)

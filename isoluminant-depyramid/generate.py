@@ -102,9 +102,9 @@ def sort_rgb_by_shv(rgb_arr):
     out_sort_by_arr = sort_by_arr[sort_idx_arr]
     return sort_idx_arr, out_rgb_arr, out_sort_by_arr
 
-def sort_rgb_by_s3hsv(rgb_arr):
+def sort_rgb_by_s3hsv(rgb_arr, n_clusters=4):
     hsv_arr = colour.RGB_to_HSV(rgb_arr / 255)
-    s3_arr = np.ceil(hsv_arr[:,1] * 4 + 0.0000000000000001).reshape((-1, 1))  # 4 clasters
+    s3_arr = np.ceil(hsv_arr[:,1] * n_clusters + 0.0000000000000001).reshape((-1, 1))
     sort_by_arr = np.hstack((s3_arr, hsv_arr))
     del hsv_arr, s3_arr
     sort_idx_arr = np.lexsort(sort_by_arr.T[::-1])
@@ -112,13 +112,13 @@ def sort_rgb_by_s3hsv(rgb_arr):
     out_sort_by_arr = sort_by_arr[sort_idx_arr]
     return sort_idx_arr, out_rgb_arr, out_sort_by_arr
 
-def sort_rgb_by_s3hsv2(rgb_arr):
+def sort_rgb_by_s3hsv2(rgb_arr, n_clusters=4):
     hsv_arr = colour.RGB_to_HSV(rgb_arr / 255)
-    s3_arr = np.ceil(hsv_arr[:,1] * 4 + 0.0000000000000001).reshape((-1, 1))  # 4 clasters
+    s3_arr = np.ceil(hsv_arr[:,1] * n_clusters + 0.0000000000000001).reshape((-1, 1))
     sort_by_arr = np.hstack((s3_arr, hsv_arr))
     del hsv_arr, s3_arr
-    ii = np.where(sort_by_arr[:,0] % 2)[0]
-    np.put(sort_by_arr[:,1], ii, -sort_by_arr[:,1][ii])
+    ii = np.where(sort_by_arr[:,0] % 2)[0]  # every second cluster ...
+    np.put(sort_by_arr[:,1], ii, -sort_by_arr[:,1][ii])  # ... are second order sorted by negative hue
     sort_idx_arr = np.lexsort(sort_by_arr.T[::-1])
     out_rgb_arr = rgb_arr[sort_idx_arr]
     out_sort_by_arr = sort_by_arr[sort_idx_arr]
@@ -166,7 +166,10 @@ if __name__ == "__main__":
             else:
                 e = int(e, 16)
                 assert e in range(0,256)
-                graylevels.extend(range(s, e+1))
+                if s <= e:
+                    graylevels.extend(range(s, e+1))
+                else:
+                    graylevels.extend(range(s, e-1, -1))
     except (IndexError, ValueError, AssertionError):
         print('Usage: python generate.py <initcolors> <graylevel> [graylevel]...')
         print('0 <= graylevel <= FF (base 16)')
@@ -201,11 +204,12 @@ if __name__ == "__main__":
             bound_rgb_arr = np.asarray(bound_img)
             assert bound_rgb_arr.shape[0] == 1  # assert one row, I hope there will never be more
             bound_rgb_arr = bound_rgb_arr.reshape((-1, 3))
-            # assert resave sorted
-            # _, bound_rgb_arr, _ = sort_rgb(bound_rgb_arr)
-            # bound_img = Image.fromarray(bound_rgb_arr.reshape((1, -1, 3)), 'RGB')
-            # bound_img.save(str(bound_img_path))
+            # ensure resave sorted
+            _, bound_rgb_arr, _ = sort_rgb(bound_rgb_arr)
+            bound_img = Image.fromarray(bound_rgb_arr.reshape((1, -1, 3)), 'RGB')
+            bound_img.save(str(bound_img_path))
             # raise Exception
+            # ensure resave sorted ends
             with dEtxtpath.open("r") as f:
                 bound_dE = float(f.read())
         else:

@@ -150,7 +150,6 @@ if __name__ == "__main__":
     else:
         not_close_to_img_path = img_path
 
-
     if not_close_to_img_path.is_file():
         not_close_to_img = Image.open(str(not_close_to_img_path))
         not_close_to_rgb_arr = np.array(not_close_to_img, dtype="uint8")
@@ -324,11 +323,8 @@ if __name__ == "__main__":
                         print("L", end="", flush=True)
                         dE_arr[:,p][:,v] = this_dE_arr = de2000.delta_e_from_lab(lab1, lab2)
                         print("D", end="", flush=True)
-                mdE_arr = np.min(dE_arr, axis=1)
-                sort1_dE_arr = np.sort(mdE_arr)
-                sort2_dE_arr = np.sort(dE_arr.reshape((dE_arr.shape[0], dE_arr.shape[1]* dE_arr.shape[2])), axis=1)
-                sort3_dE_arr = np.hstack((sort1_dE_arr, sort2_dE_arr))
-                sort_ii = np.flip(np.lexsort(np.rot90(sort3_dE_arr)))
+                sort_dE_arr = sortpals.argsort_rgb_arr_keys(None, dE_arr=dE_arr)
+                sort_ii = np.flip(np.lexsort(np.rot90(sort_dE_arr)))
                 if not_close_to_lab_arr.shape[0]:
                     for ii in sort_ii:
                         pal_rgb_arr = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[ii])]).reshape((1, -1, 3))
@@ -339,7 +335,7 @@ if __name__ == "__main__":
                         if min_nci_dE <= pal_nci_dE:
                             break
                     else:
-                        raise Exception
+                        #raise Exception
                         continue
                 else:
                     ii = sort_ii[0]
@@ -347,7 +343,7 @@ if __name__ == "__main__":
                 batch_best_i = ii # !!!
                 batch_best_pal = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[batch_best_i])]).reshape((1, -1, 3))
                 batch_best_dE = dE_arr[batch_best_i]
-                batch_best_sorted_dE = sort3_dE_arr[batch_best_i]
+                batch_best_sorted_dE = sort_dE_arr[batch_best_i]
                 if best_sorted_dE is None or (tuple(best_sorted_dE) < tuple(batch_best_sorted_dE)):
                     print("!!!", end="", flush=True)
                     best_dE = batch_best_dE

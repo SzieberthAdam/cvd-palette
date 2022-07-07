@@ -43,14 +43,13 @@ def rgbarr_to_labarr(arr):
     return arr
 
 
-# def rgbstr(rgb):
-#     r, g, b = rgb
-#     return f'#{r:0>2x}{g:0>2x}{b:0>2x}'
+def rgbstr(rgb):
+    r, g, b = rgb
+    return f'#{r:0>2x}{g:0>2x}{b:0>2x}'
 
 
-# def palstr(palarr):
-#     return ", ".join(rgbstr(rgb) for rgb in palarr)
-
+def palstr(palarr):
+    return ", ".join(rgbstr(rgb) for rgb in palarr)
 
 def grouper(iterable, n):
     args = [iter(iterable)] * n
@@ -142,7 +141,7 @@ if __name__ == "__main__":
     )
     n_vision = len(cluts)
 
-    usage = """Usage: python optimize1.py <palette image> <color number>"""
+    usage = """Usage: python optimize1.py <palette image> [min difference]"""
     try:
         in_img_path = pathlib.Path(sys.argv[1])
     except (IndexError, ValueError):
@@ -151,36 +150,19 @@ if __name__ == "__main__":
 
     if 2 < len(sys.argv):
         try:
-            color_nr = int(sys.argv[2])
+            min_nci_dE = float(sys.argv[2])
         except (ValueError):
             print(usage)
             sys.exit(2)
     else:
-        color_nr = None
-
-    if 3 < len(sys.argv):
-        try:
-            min_nci_dE = float(sys.argv[3])
-        except (ValueError):
-            print(usage)
-            sys.exit(3)
-    else:
         min_nci_dE = 10.0
-
-    if 4 < len(sys.argv):
-        try:
-            step = int(sys.argv[4])
-        except (ValueError):
-            print(usage)
-            sys.exit(4)
-    else:
-        step = 1
 
     in_img = Image.open(str(in_img_path))
     in_img_rgb_arr = np.array(in_img, dtype="uint8")
     not_close_to_rgb_arr = in_img_rgb_arr[:-1]
     not_close_to_lab_arr = rgbarr_to_labarr(not_close_to_rgb_arr)
     rgb_arr = in_img_rgb_arr[-1:]  # optimize last
+    print(palstr(rgb_arr[0]))
     n_colors = rgb_arr.shape[1]
 
     combs = tuple(itertools.combinations(range(n_colors), 2))
@@ -193,113 +175,133 @@ if __name__ == "__main__":
     graypalstrs = tuple(f'0x{v:0>2X}' for v in graypal)
     print(f'Palette gray levels: {", ".join(graypalstrs)}')
 
-    dE_arr = sortpals.get_dE_arr(rgb_arr)
-    best_dE = dE_arr[0]
-    best_sorted_dE = sortpals.argsort_rgb_arr_keys(rgb_arr, dE_arr=dE_arr)[0]
+    step = 0
+    last_step_color_nr = None
+    while True:
 
-    batch_best_pal = None
-    batch_best_dE = None
-    batch_best_sorted_dE = None
+        found_better = False
 
-    if color_nr == None:
+        dE_arr = sortpals.get_dE_arr(rgb_arr)
+        best_dE = dE_arr[0]
+        best_sorted_dE = sortpals.argsort_rgb_arr_keys(rgb_arr, dE_arr=dE_arr)[0]
+
+        batch_best_pal = None
+        batch_best_dE = None
+        batch_best_sorted_dE = None
+
         color_nrs = get_color_optimization_order(dE_arr, n_colors)
-        print(color_nrs)
-        color_nr = color_nrs[0]
 
-    print(f'=== C{color_nr} ===')
-    out_img_path = in_img_path.with_suffix(f'.opt1-{in_img_rgb_arr.shape[0]:0>3}-{step:0>2}-{color_nr:0>2}' + in_img_path.suffix)
-    out_dE_path = out_img_path.with_suffix(".txt")
-    try:
-        graylvl = graypal[color_nr-1]
-    except (IndexError):
-        print("Wrong color number.")
-        print(usage)
-        sys.exit(2)
-    print(f'Gray level: 0x{graylvl:0>2X}')
-    color_arrs = [None] * n_colors
-    isoluminantdir = root.parent / "isoluminant"
-    for i, a in enumerate(rgb_arr[0]):
-        if i == color_nr-1:
-            isoluminantimgpath = isoluminantdir / "szieberth" / f'{graylvl:0>2x}.png'
-            assert isoluminantimgpath.is_file()
-            img = Image.open(str(isoluminantimgpath))
-            arr = np.array(img).reshape((-1, 3))
-        else:
-            arr = a.reshape((1, 3))
-        color_arrs[i] = arr
-    color_lab_arrs = [rgbarr_to_labarr(a) for a in color_arrs]
-    iteration_count = int(np.prod([a.shape[0] for a in color_arrs], dtype="uint64"))
-    print(f'Iterations: {iteration_count} {[a.shape[0] for a in color_arrs]!r}')
-    idxtgen_args = [range(len(color_arrs[p])) for p in range(len(color_arrs))]
-    idxtgen = itertools.product(*idxtgen_args)
-    groupergen = grouper(idxtgen, batchsize)
-    for batchnr, batch in enumerate(groupergen, 1):
-        print(f'B{batchnr}.', end='', flush=True)
-        b = np.asarray(batch)
-        n_pals = len(batch)
-        n_colors = len(batch[0])
-        combs = tuple(itertools.combinations(range(n_colors), 2))
-        n_pairs = len(combs)
-        dE_arr = np.zeros((n_pals, n_pairs, n_vision), dtype="float64")
-        print(":", end='', flush=True)
-        for v, clut_ in enumerate(cluts):
-            if v == 0:
-                this_color_arrs = color_arrs
+        if last_step_color_nr == color_nrs[0]:
+            color_nrs = color_nrs[1:]
+        print(color_nrs)
+
+        for color_nr in color_nrs:
+
+            last_step_color_nr = color_nr
+            step += 1
+            found_better = False
+
+            print(f'=== C{color_nr} ===')
+            out_img_path = in_img_path.with_suffix(f'.opt1-{in_img_rgb_arr.shape[0]:0>3}-{step:0>2}-{color_nr:0>2}' + in_img_path.suffix)
+            out_dE_path = out_img_path.with_suffix(".txt")
+            try:
+                graylvl = graypal[color_nr-1]
+            except (IndexError):
+                print("Wrong color number.")
+                print(usage)
+                sys.exit(2)
+            print(f'Gray level: 0x{graylvl:0>2X}')
+            color_arrs = [None] * n_colors
+            isoluminantdir = root.parent / "isoluminant"
+            for i, a in enumerate(rgb_arr[0]):
+                if i == color_nr-1:
+                    isoluminantimgpath = isoluminantdir / "szieberth" / f'{graylvl:0>2x}.png'
+                    assert isoluminantimgpath.is_file()
+                    img = Image.open(str(isoluminantimgpath))
+                    arr = np.array(img).reshape((-1, 3))
+                else:
+                    arr = a.reshape((1, 3))
+                color_arrs[i] = arr
+            color_lab_arrs = [rgbarr_to_labarr(a) for a in color_arrs]
+            iteration_count = int(np.prod([a.shape[0] for a in color_arrs], dtype="uint64"))
+            print(f'Iterations: {iteration_count} {[a.shape[0] for a in color_arrs]!r}')
+            idxtgen_args = [range(len(color_arrs[p])) for p in range(len(color_arrs))]
+            idxtgen = itertools.product(*idxtgen_args)
+            groupergen = grouper(idxtgen, batchsize)
+            for batchnr, batch in enumerate(groupergen, 1):
+                print(f'B{batchnr}.', end='', flush=True)
+                b = np.asarray(batch)
+                n_pals = len(batch)
+                n_colors = len(batch[0])
+                combs = tuple(itertools.combinations(range(n_colors), 2))
+                n_pairs = len(combs)
+                dE_arr = np.zeros((n_pals, n_pairs, n_vision), dtype="float64")
+                print(":", end='', flush=True)
+                for v, clut_ in enumerate(cluts):
+                    if v == 0:
+                        this_color_arrs = color_arrs
+                    else:
+                        this_color_arrs = [
+                            clut_.clut[color_arrs[vp][:,0], color_arrs[vp][:,1], color_arrs[vp][:,2]]
+                            for vp in range(len(color_arrs))
+                        ]
+                    print(f'[{clutschars[v]}]', end="", flush=True)
+                    for p, (c1i, c2i) in enumerate(combs):
+                        print(f'c{p}', end='', flush=True)
+                        lab1 = rgbarr_to_labarr(this_color_arrs[c1i][b[:,c1i]])
+                        lab2 = rgbarr_to_labarr(this_color_arrs[c2i][b[:,c2i]])
+                        print("L", end="", flush=True)
+                        dE_arr[:,p][:,v] = this_dE_arr = de2000.delta_e_from_lab(lab1, lab2)
+                        print("D", end="", flush=True)
+                sort_dE_arr = sortpals.argsort_rgb_arr_keys(None, dE_arr=dE_arr)
+                # sort_ii = sortpals.argsort_rgb_arr(None, dE_arr=dE_arr) # identical to next line
+                sort_ii = np.flip(np.lexsort(np.rot90(sort_dE_arr)))  # shape = (n_pals,)
+                if not_close_to_lab_arr.shape[0]:
+                    for ii in sort_ii:
+                        pal_rgb_arr = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[ii])]).reshape((1, -1, 3))
+                        pal_lab_arr = np.asarray([tuple(color_lab_arrs[c][i]) for c, i in enumerate(b[ii])]).reshape((1, -1, 3))
+                        pal_nci_dE_arr = de2000.delta_e_from_lab(pal_lab_arr, not_close_to_lab_arr)
+                        pal_nci_dE_max_arr = np.max(pal_nci_dE_arr, axis=1)
+                        pal_nci_dE = np.min(pal_nci_dE_max_arr)
+                        if min_nci_dE <= pal_nci_dE:
+                            break
+                    else:
+                        continue
+                else:
+                    ii = sort_ii[0]
+                batch_best_i = ii # !!!
+                batch_best_pal = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[batch_best_i])]).reshape((1, -1, 3))
+                batch_best_dE = dE_arr[batch_best_i]
+                batch_best_sorted_dE = sort_dE_arr[batch_best_i]
+                if best_sorted_dE is None or (tuple(best_sorted_dE) < tuple(batch_best_sorted_dE)):
+                    print("!!!", end="", flush=True)
+                    best_dE = batch_best_dE
+                    best_sorted_dE = batch_best_sorted_dE
+                    rgb_arr = best_pal = batch_best_pal
+                    img = Image.fromarray(best_pal, 'RGB')
+                    img.save(out_img_path)
+                    print("(I)", end="", flush=True)
+                    found_better = True
+                with out_dE_path.open("w") as f:
+                    f.write(dEstr(best_dE, combs, batchnr))
+                print("(B)", end="", flush=True)
+                print(flush=True)
             else:
-                this_color_arrs = [
-                    clut_.clut[color_arrs[vp][:,0], color_arrs[vp][:,1], color_arrs[vp][:,2]]
-                    for vp in range(len(color_arrs))
-                ]
-            print(f'[{clutschars[v]}]', end="", flush=True)
-            for p, (c1i, c2i) in enumerate(combs):
-                print(f'c{p}', end='', flush=True)
-                lab1 = rgbarr_to_labarr(this_color_arrs[c1i][b[:,c1i]])
-                lab2 = rgbarr_to_labarr(this_color_arrs[c2i][b[:,c2i]])
-                print("L", end="", flush=True)
-                dE_arr[:,p][:,v] = this_dE_arr = de2000.delta_e_from_lab(lab1, lab2)
-                print("D", end="", flush=True)
-        sort_dE_arr = sortpals.argsort_rgb_arr_keys(None, dE_arr=dE_arr)
-        # sort_ii = sortpals.argsort_rgb_arr(None, dE_arr=dE_arr) # identical to next line
-        sort_ii = np.flip(np.lexsort(np.rot90(sort_dE_arr)))  # shape = (n_pals,)
-        if not_close_to_lab_arr.shape[0]:
-            for ii in sort_ii:
-                pal_rgb_arr = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[ii])]).reshape((1, -1, 3))
-                pal_lab_arr = np.asarray([tuple(color_lab_arrs[c][i]) for c, i in enumerate(b[ii])]).reshape((1, -1, 3))
-                pal_nci_dE_arr = de2000.delta_e_from_lab(pal_lab_arr, not_close_to_lab_arr)
-                pal_nci_dE_max_arr = np.max(pal_nci_dE_arr, axis=1)
-                pal_nci_dE = np.min(pal_nci_dE_max_arr)
-                if min_nci_dE <= pal_nci_dE:
-                    break
-            else:
-                raise Exception
-                continue
-        else:
-            ii = sort_ii[0]
-        batch_best_i = ii # !!!
-        batch_best_pal = np.asarray([tuple(color_arrs[c][i]) for c, i in enumerate(b[batch_best_i])]).reshape((1, -1, 3))
-        batch_best_dE = dE_arr[batch_best_i]
-        batch_best_sorted_dE = sort_dE_arr[batch_best_i]
-        if best_sorted_dE is None or (tuple(best_sorted_dE) < tuple(batch_best_sorted_dE)):
-            print("!!!", end="", flush=True)
-            best_dE = batch_best_dE
-            best_sorted_dE = batch_best_sorted_dE
-            rgb_arr = best_pal = batch_best_pal
-            img = Image.fromarray(best_pal, 'RGB')
-            img.save(out_img_path)
-            print("(I)", end="", flush=True)
-        with out_dE_path.open("w") as f:
-            f.write(dEstr(best_dE, combs, batchnr))
-        print("(B)", end="", flush=True)
-        print(flush=True)
-    else:
-        with out_dE_path.open("w") as f:
-            f.write(dEstr(best_dE, combs))
-        print("E", flush=True)
-    out_rgb_arr = np.vstack((not_close_to_rgb_arr, rgb_arr))
-    # out_rgb_arr = sortpals.sort_rgb_arr(out_rgb_arr)
-    out_lab_arr = rgbarr_to_labarr(out_rgb_arr)
-    out_img = Image.fromarray(out_rgb_arr, 'RGB')
-    out_img.save(out_img_path)
-    report_str = sortpals.report_str(out_rgb_arr)
-    with out_dE_path.open("w", encoding="utf8", newline='\r\n') as f:
-        f.write(report_str)
+                with out_dE_path.open("w") as f:
+                    f.write(dEstr(best_dE, combs))
+                print("E", flush=True)
+            out_rgb_arr = np.vstack((not_close_to_rgb_arr, rgb_arr))
+            # out_rgb_arr = sortpals.sort_rgb_arr(out_rgb_arr)
+            out_lab_arr = rgbarr_to_labarr(out_rgb_arr)
+            out_img = Image.fromarray(out_rgb_arr, 'RGB')
+            out_img.save(out_img_path)
+            report_str = sortpals.report_str(out_rgb_arr)
+            with out_dE_path.open("w", encoding="utf8", newline='\r\n') as f:
+                f.write(report_str)
+
+            if found_better:
+                break
+
+        else:  # not found better
+            assert not found_better
+            break # from while True

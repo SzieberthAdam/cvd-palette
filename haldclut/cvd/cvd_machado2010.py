@@ -23,6 +23,7 @@ def gamma_compress(img_lin):
     img[i_low] = 12.92 * img_lin[i_low]
     return img
 
+# https://github.com/colour-science/colour/blindness/datasets/machado2010.py
 cvd_mx = {
     "deuta": np.array([
         [0.367322, 0.860646, -0.227968],

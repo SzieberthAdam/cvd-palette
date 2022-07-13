@@ -1,3 +1,5 @@
-haldclut/gray/*.bmp
-**/work/*.*
+*.bak.*
 *.pyc
+**/work/*.*
+*Copy*.*
+haldclut/gray/*.bmp

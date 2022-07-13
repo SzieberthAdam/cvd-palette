@@ -21,6 +21,14 @@ from PIL import Image
 import numpy as np
 
 
+haldclutdir = _thisdir.parent / "haldclut"
+cluts = (
+    clut.CLUT(str(haldclutdir / "identity" / "identity.png")),       # normal
+    clut.CLUT(str(haldclutdir / "cvd" / "deuta.machado2010.png")),   # deuteranopia
+    clut.CLUT(str(haldclutdir / "cvd" / "prota.machado2010.png")),   # protanopia
+    clut.CLUT(str(haldclutdir / "cvd" / "trita.machado2010.png")),   # tritanopia
+)
+n_vision = len(cluts)
 clutschars = "NDPT"
 clutnames = (
     "normal",
@@ -52,14 +60,6 @@ def grouper(iterable, n):
 
 
 def get_dE_arr(rgb_arr):
-    haldclutdir = _thisdir.parent / "haldclut"
-    cluts = (
-        clut.CLUT(str(haldclutdir / "identity" / "identity.png")),       # normal
-        clut.CLUT(str(haldclutdir / "cvd" / "deuta.machado2010.png")),   # deuteranopia
-        clut.CLUT(str(haldclutdir / "cvd" / "prota.machado2010.png")),   # protanopia
-        clut.CLUT(str(haldclutdir / "cvd" / "trita.machado2010.png")),   # tritanopia
-    )
-    n_vision = len(cluts)
     n_pals = rgb_arr.shape[0]
     n_colors = rgb_arr.shape[-2]
     combs = tuple(itertools.combinations(range(n_colors), 2))
@@ -106,13 +106,6 @@ def sort_rgb_arr(rgb_arr, *, dE_arr=None):
 
 
 def report_str(rgb_arr, *, dE_arr=None):
-    haldclutdir = _thisdir.parent / "haldclut"
-    cluts = (
-        clut.CLUT(str(haldclutdir / "identity" / "identity.png")),       # normal
-        clut.CLUT(str(haldclutdir / "cvd" / "deuta.machado2010.png")),   # deuteranopia
-        clut.CLUT(str(haldclutdir / "cvd" / "prota.machado2010.png")),   # protanopia
-        clut.CLUT(str(haldclutdir / "cvd" / "trita.machado2010.png")),   # tritanopia
-    )
     dE_arr = dE_arr or get_dE_arr(rgb_arr)
 
     n_pals = rgb_arr.shape[0]
@@ -268,16 +261,6 @@ if __name__ == "__main__":
     img = Image.open(str(img_path))
     rgb_arr = np.array(img)
 
-    haldclutdir = root.parent / "haldclut"
-
-    cluts = (
-        clut.CLUT(str(haldclutdir / "identity" / "identity.png")),       # normal
-        clut.CLUT(str(haldclutdir / "cvd" / "deuta.machado2010.png")),   # deuteranopia
-        clut.CLUT(str(haldclutdir / "cvd" / "prota.machado2010.png")),   # protanopia
-        clut.CLUT(str(haldclutdir / "cvd" / "trita.machado2010.png")),   # tritanopia
-    )
-
-    n_vision = len(cluts)
     n_pals = rgb_arr.shape[0]
     n_colors = rgb_arr.shape[-2]
     combs = tuple(itertools.combinations(range(n_colors), 2))

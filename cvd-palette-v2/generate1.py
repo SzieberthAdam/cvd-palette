@@ -197,12 +197,23 @@ def main(n_colors_or_rgb_arr, isopyramid_start_colors, n_neighbour_colors, n_clo
         color_arrs = [None] * len(graypal)
         isoluminantdir = _thisdir.parent / "isoluminant-depyramid"
         for i, graylvl in enumerate(graypal):
+            print(f'{graylvl:0>2x}')
             if graylvl in {0, 255}:
                 arr = np.array([[graylvl, graylvl, graylvl]], dtype="uint8")
             else:
-                isoluminantimgpath = isoluminantdir / f'{graylvl:0>2x}' / f'{graylvl:0>2x}-{isopyramid_start_colors:0>4}-{level:0>2}.png'
+                isoluminantimgpath = l_isoluminantimgpath = isoluminantdir / f'{graylvl:0>2x}' / f'{graylvl:0>2x}-{isopyramid_start_colors:0>4}-{level:0>2}.png'
+                print(isoluminantimgpath)
+                ilevel = level
+                while not isoluminantimgpath.is_file() and ilevel - 2:
+                    ilevel = ilevel - 1
+                    isoluminantimgpath = isoluminantdir / f'{graylvl:0>2x}' / f'{graylvl:0>2x}-{isopyramid_start_colors:0>4}-{ilevel:0>2}.png'
+                    past_top_level[i] = True
+                    print(isoluminantimgpath)
+                assert isoluminantimgpath.is_file()
+                if past_top_level[i]:
+                    print("Past top.")
                 if isoluminantimgpath.is_file():
-                    # print(isoluminantimgpath)
+                    print(f'is file: {isoluminantimgpath}')
                     img = Image.open(str(isoluminantimgpath))
                     if level == 1:
                         arr = np.array(img).reshape((-1, 3))
@@ -256,9 +267,6 @@ def main(n_colors_or_rgb_arr, isopyramid_start_colors, n_neighbour_colors, n_clo
                             arr = arr4
                         else:
                             arr = arr1
-                else:
-                    arr = prev_color_arrs[i]
-                    past_top_level[i] = True
             assert arr.shape[0]
             color_arrs[i] = arr
 
@@ -350,6 +358,7 @@ def main(n_colors_or_rgb_arr, isopyramid_start_colors, n_neighbour_colors, n_clo
     out_dE = tuple(sortall.argsort_rgb_arr_keys(out_rgb_arr2[-1:])[0])
 
     if ref_dE is not None and ref_dE < out_dE:  # found a better; restart from it
+        print(ref_dE, out_dE)
         optimized, out_rgb_arr3 = optimizelastc.main(out_rgb_arr2[-1:], n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE)
     else:
         out_rgb_arr3 = out_rgb_arr2

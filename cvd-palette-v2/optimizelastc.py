@@ -33,7 +33,7 @@ def main(in_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=10.0):
     while optimized1 or optimized2:
         optimized2, out_rgb_arr = optimizelast2.main(out_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE)
         optimized1, out_rgb_arr = optimizelast1.main(out_rgb_arr, min_nci_dE=min_nci_dE)
-        optimized = optimized1 or optimized2
+        optimized = optimized or optimized1 or optimized2
     return optimized, out_rgb_arr
 
 

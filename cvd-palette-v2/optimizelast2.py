@@ -309,10 +309,10 @@ def main(in_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=10.0):
             best_dE = batch_best_dE
             best_sorted_dE = batch_best_sorted_dE
             best_pal = batch_best_pal
-            img = Image.fromarray(best_pal, 'RGB')
-            img.save(level_img_path)
             print("(I)", end="", flush=True)
             optimized = True
+        img = Image.fromarray(best_pal, 'RGB')
+        img.save(level_img_path)
         with level_dE_path.open("w") as f:
             f.write(dEstr(best_dE, combs, batchnr))
         print("(B)", end="", flush=True)

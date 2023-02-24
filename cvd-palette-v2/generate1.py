@@ -22,6 +22,8 @@ import numpy as np
 
 
 import sortall
+import optimizelast1
+import optimizelast2
 import optimizelastc
 
 
@@ -174,7 +176,6 @@ def main(n_colors_or_rgb_arr, isopyramid_start_colors, n_neighbour_colors, n_clo
 
         level_dE_path = work / f'{n_colors:0>2}-{isopyramid_start_colors:0>5}-{n_neighbour_colors:0>5}-{n_close_dE_colors:0>5}-{palnr:0>4}-{level:0>2}.txt'
         level_img_path = work / f'{n_colors:0>2}-{isopyramid_start_colors:0>5}-{n_neighbour_colors:0>5}-{n_close_dE_colors:0>5}-{palnr:0>4}-{level:0>2}.png'
-
 
         if level_img_path.is_file():
             img = Image.open(str(level_img_path))
@@ -347,19 +348,38 @@ def main(n_colors_or_rgb_arr, isopyramid_start_colors, n_neighbour_colors, n_clo
                 f.write(dEstr(best_dE, combs))
             print("E", flush=True)
 
+        optimized1 = False
+        optimized2 = True
+        while not (optimized1 and optimized2):
+            if not optimized1:
+                optimized1, best_pal = optimizelast1.main(best_pal, min_nci_dE=min_nci_dE, isopyramid_start_colors=isopyramid_start_colors, level=level)
+                if optimized1:
+                    optimized2 = False
+                optimized1 = True
+            if not optimized2:
+                optimized2, best_pal = optimizelast2.main(best_pal, n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE, isopyramid_start_colors=isopyramid_start_colors, level=level)
+                if optimized2:
+                    optimized1 = False
+                optimized2 = True
+        best_dE = tuple(sortall.argsort_rgb_arr_keys(best_pal[-1:])[0])
+        img = Image.fromarray(best_pal, 'RGB')
+        img.save(level_img_path)
+        with level_dE_path.open("w") as f:
+            f.write(dEstr(best_dE, combs, batchnr))
+                
         level += 1
         prev_color_arrs = color_arrs
 
 
 
     out_rgb_arr1 = np.vstack((in_rgb_arr, best_pal))
-    optimized, out_rgb_arr2 = optimizelastc.main(out_rgb_arr1, n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE)
+    optimized, out_rgb_arr2 = optimizelastc.main(out_rgb_arr1, n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE, isopyramid_start_colors=isopyramid_start_colors, level=level)
 
     out_dE = tuple(sortall.argsort_rgb_arr_keys(out_rgb_arr2[-1:])[0])
 
     if ref_dE is not None and ref_dE < out_dE:  # found a better; restart from it
         print(ref_dE, out_dE)
-        optimized, out_rgb_arr3 = optimizelastc.main(out_rgb_arr2[-1:], n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE)
+        optimized, out_rgb_arr3 = optimizelastc.main(out_rgb_arr2[-1:], n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE, isopyramid_start_colors=isopyramid_start_colors, level=level)
     else:
         out_rgb_arr3 = out_rgb_arr2
 

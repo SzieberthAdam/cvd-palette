@@ -25,14 +25,18 @@ import optimizelast1
 import optimizelast2
 import sortall
 
-def main(in_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=10.0):
+def main(in_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=10.0, isopyramid_start_colors=5, level=None, reverseorder=False):
 
     optimized = False
     optimized1, optimized2 = True, True
     out_rgb_arr = in_rgb_arr
     while optimized1 or optimized2:
-        optimized2, out_rgb_arr = optimizelast2.main(out_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE)
-        optimized1, out_rgb_arr = optimizelast1.main(out_rgb_arr, min_nci_dE=min_nci_dE)
+        if reverseorder:
+            optimized1, out_rgb_arr = optimizelast1.main(out_rgb_arr, min_nci_dE=min_nci_dE, isopyramid_start_colors=isopyramid_start_colors, level=level)
+            optimized2, out_rgb_arr = optimizelast2.main(out_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE, isopyramid_start_colors=isopyramid_start_colors, level=level)
+        else:
+            optimized2, out_rgb_arr = optimizelast2.main(out_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=min_nci_dE, isopyramid_start_colors=isopyramid_start_colors, level=level)
+            optimized1, out_rgb_arr = optimizelast1.main(out_rgb_arr, min_nci_dE=min_nci_dE, isopyramid_start_colors=isopyramid_start_colors, level=level)
         optimized = optimized or optimized1 or optimized2
     return optimized, out_rgb_arr
 

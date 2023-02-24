@@ -133,7 +133,7 @@ def get_color_optimization_order(dE_arr, n_colors):
     return tuple(x+1 for x in jj)
 
 
-def main(in_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=10.0):
+def main(in_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=10.0, isopyramid_start_colors=5, level=None):
     optimized = False
     not_close_to_rgb_arr = in_rgb_arr[:-1]
     not_close_to_lab_arr = rgbarr_to_labarr(not_close_to_rgb_arr)
@@ -186,9 +186,14 @@ def main(in_rgb_arr, n_neighbour_colors, n_close_dE_colors, min_nci_dE=10.0):
             color_rgb_arr = rgb_arr[0][i]
             color_lab_arr = rgbarr_to_labarr(color_rgb_arr)
 
-            isoluminantimgpaths = sorted((isoluminantdir / f'{graylvl:0>2x}').glob(f'{graylvl:0>2x}-{5:0>4}-*.png'))
+            isoluminantimgpaths = sorted((isoluminantdir / f'{graylvl:0>2x}').glob(f'{graylvl:0>2x}-{isopyramid_start_colors:0>4}-*.png'))
             assert isoluminantimgpaths
-            isoluminantimgpath = isoluminantimgpaths[-1]
+            if level is None:                
+                isoluminantimgpath = isoluminantimgpaths[-1]
+            else:
+                isoluminantimgpath = isoluminantdir / f'{graylvl:0>2x}' / f'{graylvl:0>2x}-{isopyramid_start_colors:0>4}-{level:0>2}.png'
+                if not isoluminantimgpath.is_file():
+                    isoluminantimgpath = isoluminantimgpaths[-1]
             print(isoluminantimgpath)
             img = Image.open(str(isoluminantimgpath))
             arr0 = np.array(img).reshape((-1, 3))
